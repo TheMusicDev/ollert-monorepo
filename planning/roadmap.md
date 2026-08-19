@@ -4,7 +4,7 @@ title: Ollert Roadmap
 description: MVP scope, phased plan, and decisions/tradeoffs made during planning.
 tags: [roadmap, mvp, decisions]
 status: draft
-generated: { by: "claude-code/sonnet-5", at: "2026-08-19T00:00:00Z" }
+generated: { by: "claude-code/sonnet-5", at: "2026-08-19T18:40:58Z" }
 ---
 
 # MVP Scope
@@ -16,7 +16,7 @@ Bare-bones: orgs, boards, lists, cards, drag-drop reorder (within and across lis
 ## Phase 1 — Foundations
 * CakePHP app skeleton, `cakephp/migrations` set up, migrations for [Data Model](data-model.md)
 * Supabase project set up (auth only), JWKS verification middleware, CORS policy applied (see [Architecture](architecture.md))
-* Vite+React skeleton with TanStack Router, Supabase JS client wired for login/signup/session
+* TanStack Start (SPA mode) skeleton — Bun, Tailwind, Base UI — Supabase JS client wired for login/signup/session
 
 ## Phase 2 — Core CRUD
 * [API Contract](api-contract.md) endpoints implemented, including quota checks and the standard error envelope
@@ -58,7 +58,9 @@ Full deliberation lives in [log.md](log.md); summarized here:
 * **JIT provisioning**: confirmed as find-or-create on every authenticated request (no dedicated bootstrap endpoint).
 * **CORS**: origin allow-list only, no credentials mode — auth is a Bearer token, not a cookie, so there's nothing for `Access-Control-Allow-Credentials` to protect.
 * **Error shape**: standard `{ error: { message, code, fields? } }` envelope on every non-2xx response — see [API Contract](api-contract.md).
-* **FE router**: TanStack Router as a plain client-side SPA, not TanStack Start — no Node server to run Start's SSR/server-functions model, and a static `vite build` output is the simplest thing that deploys cleanly to a shared PHP host.
+* **FE framework**: TanStack Start, run in **SPA mode** (SSR/server functions off) — no Node server to run Start's full model, and a static build output is the simplest thing that deploys cleanly to a shared PHP host. Gets Start's router/tooling without needing a server; revisit if the deploy target ever gains a Node runtime.
+* **FE toolchain**: Bun (package manager/runtime), Tailwind CSS, Base UI for headless component primitives.
+* **Primary keys**: UUIDs on every entity (MySQL `char(36)` / migrations `uuid` type) instead of auto-increment ints — CakePHP's ORM auto-generates them on save, no extra plugin needed. See [Data Model](data-model.md).
 * **Deployment**: shared PHP host, SSH, local (non-CI) deploy scripts, split by package. Scripts themselves deferred to Phase 3.
-* **Testing**: PHPUnit / Vitest / Playwright — see Testing Strategy above.
+* **Testing**: PHPUnit / Vitest (via Bun) / Playwright — see Testing Strategy above.
 * **Migrations tooling**: `cakephp/migrations` plugin, confirmed.

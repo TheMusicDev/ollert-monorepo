@@ -4,12 +4,14 @@ title: Ollert Data Model
 description: Entities, fields, and relationships for the MVP MySQL schema owned by CakePHP.
 tags: [data-model, mysql, schema]
 status: draft
-generated: { by: "claude-code/sonnet-5", at: "2026-08-19T00:00:00Z" }
+generated: { by: "claude-code/sonnet-5", at: "2026-08-19T18:40:58Z" }
 ---
 
 # Summary
 
 MVP entities: `users`, `organizations`, `org_members`, `boards`, `lists`, `cards`. Access control is org-scoped: a member of an org has access to every board in that org — no per-board membership or roles in v1. No labels, comments, attachments, or checklists in the MVP — see [Roadmap](roadmap.md) for what's deferred.
+
+All primary keys (and the foreign keys that reference them) are UUIDs — MySQL `char(36)`, `cakephp/migrations` column type `uuid`. CakePHP's ORM generates the UUID automatically on save when the primary key column type is `uuid` and no value was set (`Text::uuid()` under the hood) — no extra plugin or manual `beforeSave` hook needed. `users.supabase_uid` stays a separate UUID column (the Supabase `sub` claim) from `users.id` (the local PK) — the two are unrelated identifiers pointing at the same person.
 
 # Schema
 
@@ -18,7 +20,7 @@ Local shadow of the Supabase-authenticated identity. Created just-in-time on fir
 
 | field | type | notes |
 |---|---|---|
-| id | int, PK | local identity |
+| id | uuid, PK | local identity |
 | supabase_uid | char(36), unique | Supabase `sub` claim (UUID) |
 | email | varchar | denormalized from JWT claim at provisioning time, refreshed opportunistically |
 | display_name | varchar, nullable | |
@@ -30,8 +32,8 @@ Local shadow of the Supabase-authenticated identity. Created just-in-time on fir
 
 | field | type | notes |
 |---|---|---|
-| id | int, PK | |
-| owner_id | int, FK -> users.id | org creator, full rights |
+| id | uuid, PK | |
+| owner_id | uuid, FK -> users.id | org creator, full rights |
 | name | varchar | |
 | created_at | datetime | |
 
@@ -40,9 +42,9 @@ Join table. Owner is implicitly a member too (or: owner row also present here fo
 
 | field | type | notes |
 |---|---|---|
-| id | int, PK | |
-| org_id | int, FK -> organizations.id | |
-| user_id | int, FK -> users.id | |
+| id | uuid, PK | |
+| org_id | uuid, FK -> organizations.id | |
+| user_id | uuid, FK -> users.id | |
 | created_at | datetime | when added to org |
 
 No roles column — every member has equal edit rights per [current decision](log.md).
@@ -51,8 +53,8 @@ No roles column — every member has equal edit rights per [current decision](lo
 
 | field | type | notes |
 |---|---|---|
-| id | int, PK | |
-| org_id | int, FK -> organizations.id | access derived from org_members, not a per-board list |
+| id | uuid, PK | |
+| org_id | uuid, FK -> organizations.id | access derived from org_members, not a per-board list |
 | title | varchar | |
 | created_at | datetime | |
 | updated_at | datetime | |
@@ -73,8 +75,8 @@ Columns on a board (e.g. "To Do", "In Progress", "Done").
 
 | field | type | notes |
 |---|---|---|
-| id | int, PK | |
-| board_id | int, FK -> boards.id | |
+| id | uuid, PK | |
+| board_id | uuid, FK -> boards.id | |
 | title | varchar | |
 | position | float or int | for drag-drop ordering, see below |
 | created_at | datetime | |
@@ -83,8 +85,8 @@ Columns on a board (e.g. "To Do", "In Progress", "Done").
 
 | field | type | notes |
 |---|---|---|
-| id | int, PK | |
-| list_id | int, FK -> lists.id | |
+| id | uuid, PK | |
+| list_id | uuid, FK -> lists.id | |
 | title | varchar | |
 | description | text, nullable | |
 | due_date | date, nullable | |
