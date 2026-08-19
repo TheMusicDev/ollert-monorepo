@@ -4,7 +4,7 @@ title: Ollert Roadmap
 description: MVP scope, phased plan, and decisions/tradeoffs made during planning.
 tags: [roadmap, mvp, decisions]
 status: draft
-generated: { by: "claude-code/sonnet-5", at: "2026-08-19" }
+generated: { by: "claude-code/sonnet-5", at: "2026-08-19T00:00:00Z" }
 ---
 
 # MVP Scope

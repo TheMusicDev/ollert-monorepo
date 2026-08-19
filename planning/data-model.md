@@ -4,7 +4,7 @@ title: Ollert Data Model
 description: Entities, fields, and relationships for the MVP MySQL schema owned by CakePHP.
 tags: [data-model, mysql, schema]
 status: draft
-generated: { by: "claude-code/sonnet-5", at: "2026-08-19" }
+generated: { by: "claude-code/sonnet-5", at: "2026-08-19T00:00:00Z" }
 ---
 
 # Summary

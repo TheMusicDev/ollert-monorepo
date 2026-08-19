@@ -4,7 +4,7 @@ title: Ollert Architecture
 description: System shape, repo layout, tech stack, and auth flow for Ollert.
 tags: [architecture, auth, stack]
 status: draft
-generated: { by: "claude-code/sonnet-5", at: "2026-08-19" }
+generated: { by: "claude-code/sonnet-5", at: "2026-08-19T00:00:00Z" }
 ---
 
 # Summary

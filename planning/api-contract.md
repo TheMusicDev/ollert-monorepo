@@ -4,7 +4,7 @@ title: Ollert API Contract
 description: REST endpoints CakePHP exposes to the React frontend, MVP scope.
 tags: [api, rest, cakephp]
 status: draft
-generated: { by: "claude-code/sonnet-5", at: "2026-08-19" }
+generated: { by: "claude-code/sonnet-5", at: "2026-08-19T00:00:00Z" }
 ---
 
 # Summary
