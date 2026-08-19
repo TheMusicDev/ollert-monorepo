@@ -1,0 +1,18 @@
+---
+okf_version: "0.2"
+---
+
+# Ollert Planning Bundle
+
+Stripped-down Trello clone. CakePHP backend, Supabase Auth for user management, Vite+React frontend. Frontend owns the auth session and sends Supabase JWTs to the backend on every request.
+
+# Overview
+
+* [Architecture](architecture.md) - system shape, repo layout, tech stack, auth flow
+* [Data Model](data-model.md) - entities, fields, relationships
+* [API Contract](api-contract.md) - REST endpoints CakePHP exposes to the frontend
+* [Roadmap](roadmap.md) - MVP scope, phases, and deferred work
+
+# History
+
+* [Change log](log.md)
