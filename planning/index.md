@@ -11,6 +11,7 @@ Stripped-down Trello clone. CakePHP backend, Supabase Auth for user management, 
 * [Architecture](architecture.md) - system shape, repo layout, tech stack, auth flow
 * [Data Model](data-model.md) - entities, fields, relationships
 * [API Contract](api-contract.md) - REST endpoints CakePHP exposes to the frontend
+* [Design](design.md) - color palette, typography, layout pattern for the FE
 * [Roadmap](roadmap.md) - MVP scope, phases, and deferred work
 
 # History

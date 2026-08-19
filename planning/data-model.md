@@ -4,7 +4,7 @@ title: Ollert Data Model
 description: Entities, fields, and relationships for the MVP MySQL schema owned by CakePHP.
 tags: [data-model, mysql, schema]
 status: draft
-generated: { by: "claude-code/sonnet-5", at: "2026-08-19T18:40:58Z" }
+generated: { by: "claude-code/sonnet-5", at: "2026-08-19T19:50:29Z" }
 ---
 
 # Summary
@@ -12,6 +12,14 @@ generated: { by: "claude-code/sonnet-5", at: "2026-08-19T18:40:58Z" }
 MVP entities: `users`, `organizations`, `org_members`, `boards`, `lists`, `cards`. Access control is org-scoped: a member of an org has access to every board in that org — no per-board membership or roles in v1. No labels, comments, attachments, or checklists in the MVP — see [Roadmap](roadmap.md) for what's deferred.
 
 All primary keys (and the foreign keys that reference them) are UUIDs — MySQL `char(36)`, `cakephp/migrations` column type `uuid`. CakePHP's ORM generates the UUID automatically on save when the primary key column type is `uuid` and no value was set (`Text::uuid()` under the hood) — no extra plugin or manual `beforeSave` hook needed. `users.supabase_uid` stays a separate UUID column (the Supabase `sub` claim) from `users.id` (the local PK) — the two are unrelated identifiers pointing at the same person.
+
+## Field constraints
+
+All `name`/`title` fields (`organizations.name`, `boards.title`, `lists.title`, `cards.title`) are `varchar(255)`, required, no uniqueness constraint — two boards named "Sprint" is fine, this isn't a namespace. `cards.description` is `text`, nullable, unbounded. `users.email`/`display_name` follow the same `varchar(255)` sizing.
+
+## Timestamps and soft delete
+
+Every table gets `created`, `modified`, `deleted` — CakePHP's `TimestampBehavior` conventionally auto-manages `created`/`modified` (no `_at` suffix), so column names follow that rather than the `created_at`/`updated_at` used earlier in this doc's draft. `deleted` (`datetime`, nullable) is a soft-delete marker managed by the **Muffin/Trash** plugin (`muffin/trash`) — its `TrashBehavior` defaults to a `deleted` column, sets it instead of issuing a real `DELETE`, and scopes finders to exclude trashed rows by default. All `DELETE` endpoints in the [API contract](api-contract.md) become soft deletes; nothing in the MVP hard-deletes a row. These three columns are omitted from the per-table field lists below to avoid repeating them six times — assume every table has `id, ...fields..., created, modified, deleted`.
 
 # Schema
 
@@ -26,7 +34,8 @@ Local shadow of the Supabase-authenticated identity. Created just-in-time on fir
 | display_name | varchar, nullable | |
 | max_orgs | int, default 1 | quota: orgs this user may own (see Quotas below) |
 | max_boards_per_org | int, default 3 | quota: boards allowed in an org this user owns |
-| created_at | datetime | |
+| max_lists_per_board | int, default 5 | quota: lists allowed in a board this user owns (via org ownership) |
+| max_cards_per_board | int, default 100 | quota: cards allowed across all lists in a board this user owns |
 
 ## organizations
 
@@ -35,7 +44,6 @@ Local shadow of the Supabase-authenticated identity. Created just-in-time on fir
 | id | uuid, PK | |
 | owner_id | uuid, FK -> users.id | org creator, full rights |
 | name | varchar | |
-| created_at | datetime | |
 
 ## org_members
 Join table. Owner is implicitly a member too (or: owner row also present here for uniform membership checks — pick one convention during implementation). Membership here is what grants access to *all* boards under the org.
@@ -45,7 +53,6 @@ Join table. Owner is implicitly a member too (or: owner row also present here fo
 | id | uuid, PK | |
 | org_id | uuid, FK -> organizations.id | |
 | user_id | uuid, FK -> users.id | |
-| created_at | datetime | when added to org |
 
 No roles column — every member has equal edit rights per [current decision](log.md).
 
@@ -56,19 +63,19 @@ No roles column — every member has equal edit rights per [current decision](lo
 | id | uuid, PK | |
 | org_id | uuid, FK -> organizations.id | access derived from org_members, not a per-board list |
 | title | varchar | |
-| created_at | datetime | |
-| updated_at | datetime | |
 
 Only the org's `owner_id` may create a board in it (org members may still read/rename/delete per the [API contract](api-contract.md) — creation specifically is owner-gated because it's what consumes the owner's `max_boards_per_org` quota).
 
 # Quotas
 
-Two limits, both columns on `users`, both enforced app-side (not DB constraints) at creation time:
+Four limits, all columns on `users`, all enforced app-side (not DB constraints) at creation time:
 
 * **`max_orgs`** (default `1`): checked when a user creates an org — `count(organizations where owner_id = user.id) < user.max_orgs`.
 * **`max_boards_per_org`** (default `3`): checked when the org's owner creates a board — `count(boards where org_id = org.id) < owner.max_boards_per_org`.
+* **`max_lists_per_board`** (default `5`): checked when any org member creates a list — `count(lists where board_id = board.id) < board.org.owner.max_lists_per_board`. Checked against the *org owner's* column regardless of who's creating the list, same pattern as board creation.
+* **`max_cards_per_board`** (default `100`): checked when any org member creates a card — `count(cards joined lists where lists.board_id = board.id) < board.org.owner.max_cards_per_board`. Counted across the whole board (all its lists), not per-list.
 
-Both default low; raising them (e.g. for a paid tier) is just updating the column — no schema change. Quota-exceeded creation attempts fail; see the [API contract](api-contract.md#conventions) for the error shape.
+All four default low; raising them (e.g. for a paid tier) is just updating the column — no schema change. Quota-exceeded creation attempts fail; see the [API contract](api-contract.md#conventions) for the error shape.
 
 ## lists
 Columns on a board (e.g. "To Do", "In Progress", "Done").
@@ -79,7 +86,6 @@ Columns on a board (e.g. "To Do", "In Progress", "Done").
 | board_id | uuid, FK -> boards.id | |
 | title | varchar | |
 | position | float or int | for drag-drop ordering, see below |
-| created_at | datetime | |
 
 ## cards
 
@@ -91,12 +97,10 @@ Columns on a board (e.g. "To Do", "In Progress", "Done").
 | description | text, nullable | |
 | due_date | date, nullable | |
 | position | float or int | for drag-drop ordering within a list |
-| created_at | datetime | |
-| updated_at | datetime | |
 
 # Ordering (drag-drop)
 
-Use a float `position` column (fractional indexing: new position = midpoint of neighbors) rather than an integer rank that requires re-numbering siblings on every reorder. Moving a card/list only touches the one row being moved.
+Use a float `position` column (fractional indexing: new position = midpoint of neighbors) rather than an integer rank that requires re-numbering siblings on every reorder. Moving a card/list only touches the one row being moved. The first card/list in an otherwise-empty list/board has no neighbors to midpoint against — bootstrap it to `1.0`; every insert after that has at least one neighbor.
 
 # Deferred (not in MVP schema)
 
