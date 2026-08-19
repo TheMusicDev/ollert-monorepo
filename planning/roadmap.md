@@ -9,27 +9,35 @@ generated: { by: "claude-code/sonnet-5", at: "2026-08-19T00:00:00Z" }
 
 # MVP Scope
 
-Bare-bones: orgs, boards, lists, cards, drag-drop reorder (within and across lists), card detail (title/description/due date), org members (owner + members, no roles — membership grants access to every board in the org). No comments, attachments, activity log, labels, checklists, notifications, search, or realtime.
+Bare-bones: orgs, boards, lists, cards, drag-drop reorder (within and across lists), card detail (title/description/due date), org members (owner + members, no roles — membership grants access to every board in the org), per-user quotas on org/board creation (defaults: 1 org, 3 boards/org). No comments, attachments, activity log, labels, checklists, notifications, search, or realtime.
 
 # Phases
 
 ## Phase 1 — Foundations
-* CakePHP app skeleton, MySQL migrations for [Data Model](data-model.md)
-* Supabase project set up (auth only), JWKS verification middleware
-* Vite+React skeleton, Supabase JS client wired for login/signup/session
+* CakePHP app skeleton, `cakephp/migrations` set up, migrations for [Data Model](data-model.md)
+* Supabase project set up (auth only), JWKS verification middleware, CORS policy applied (see [Architecture](architecture.md))
+* Vite+React skeleton with TanStack Router, Supabase JS client wired for login/signup/session
 
 ## Phase 2 — Core CRUD
-* [API Contract](api-contract.md) endpoints implemented
+* [API Contract](api-contract.md) endpoints implemented, including quota checks and the standard error envelope
 * React UI: org list, board list per org, board detail, list/card CRUD, drag-drop (e.g. `@dnd-kit`)
 * Org membership: add/remove members by email
 
 ## Phase 3 — Polish
 * Card detail modal (description, due date)
 * Basic empty/loading/error states, form validation
-* Deployment target decided and set up
+* PHPUnit coverage on `/api`, Vitest coverage on `/web`
+* First manual deploy to the shared PHP host over SSH (scripts written then, not before — see Deferred)
+
+# Testing Strategy
+
+* `/api` — PHPUnit, CakePHP's standard.
+* `/web` — Vitest for unit/component tests.
+* **e2e** — Playwright, run against the real built frontend and a running API rather than living inside the Vitest toolchain. Not phased in until Phase 3 at the earliest; unit-level coverage comes first.
 
 # Deferred (post-MVP)
 
+* **Deploy scripts** — deploy target and mechanism are decided (shared PHP host, SSH, local scripts — see [Architecture](architecture.md)), but writing the scripts themselves is deferred until there's a working app to deploy. Two scripts, `/api` and `/web`, since the pipelines differ (PHP sync + migrations vs. static build sync).
 * **Realtime sync** — deferred at planning time because app data lives in CakePHP-owned MySQL, not Supabase's Postgres, so Supabase Realtime (which watches Postgres replication) doesn't apply directly. When picked back up, use a self-hosted Pusher-protocol service (Soketi) that CakePHP broadcasts to on writes, with the React app subscribing via `pusher-js`. SSE was considered and rejected as a poor fit for a typical PHP-FPM request lifecycle.
 * Labels, comments, attachments, checklists, activity log
 * Per-org roles (owner/member/viewer) — would add a `role` column to `org_members`
@@ -46,3 +54,11 @@ Full deliberation lives in [log.md](log.md); summarized here:
 * **Repo**: monorepo (`/api`, `/web`, `/planning`).
 * **Realtime**: explicitly dropped from MVP after the DB choice made "just use Supabase Realtime" not viable — see Deferred above.
 * **Access model**: switched from per-board membership to orgs — an org has many boards, and org membership grants access to all of that org's boards (no per-board membership/roles in v1).
+* **Quotas**: `max_orgs` (default 1) and `max_boards_per_org` (default 3) live on `users`, enforced app-side. Board creation is org-owner-only (it's what spends the quota); other board actions remain open to any org member.
+* **JIT provisioning**: confirmed as find-or-create on every authenticated request (no dedicated bootstrap endpoint).
+* **CORS**: origin allow-list only, no credentials mode — auth is a Bearer token, not a cookie, so there's nothing for `Access-Control-Allow-Credentials` to protect.
+* **Error shape**: standard `{ error: { message, code, fields? } }` envelope on every non-2xx response — see [API Contract](api-contract.md).
+* **FE router**: TanStack Router as a plain client-side SPA, not TanStack Start — no Node server to run Start's SSR/server-functions model, and a static `vite build` output is the simplest thing that deploys cleanly to a shared PHP host.
+* **Deployment**: shared PHP host, SSH, local (non-CI) deploy scripts, split by package. Scripts themselves deferred to Phase 3.
+* **Testing**: PHPUnit / Vitest / Playwright — see Testing Strategy above.
+* **Migrations tooling**: `cakephp/migrations` plugin, confirmed.

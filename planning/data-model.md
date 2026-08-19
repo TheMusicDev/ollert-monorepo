@@ -22,6 +22,8 @@ Local shadow of the Supabase-authenticated identity. Created just-in-time on fir
 | supabase_uid | char(36), unique | Supabase `sub` claim (UUID) |
 | email | varchar | denormalized from JWT claim at provisioning time, refreshed opportunistically |
 | display_name | varchar, nullable | |
+| max_orgs | int, default 1 | quota: orgs this user may own (see Quotas below) |
+| max_boards_per_org | int, default 3 | quota: boards allowed in an org this user owns |
 | created_at | datetime | |
 
 ## organizations
@@ -54,6 +56,17 @@ No roles column — every member has equal edit rights per [current decision](lo
 | title | varchar | |
 | created_at | datetime | |
 | updated_at | datetime | |
+
+Only the org's `owner_id` may create a board in it (org members may still read/rename/delete per the [API contract](api-contract.md) — creation specifically is owner-gated because it's what consumes the owner's `max_boards_per_org` quota).
+
+# Quotas
+
+Two limits, both columns on `users`, both enforced app-side (not DB constraints) at creation time:
+
+* **`max_orgs`** (default `1`): checked when a user creates an org — `count(organizations where owner_id = user.id) < user.max_orgs`.
+* **`max_boards_per_org`** (default `3`): checked when the org's owner creates a board — `count(boards where org_id = org.id) < owner.max_boards_per_org`.
+
+Both default low; raising them (e.g. for a paid tier) is just updating the column — no schema change. Quota-exceeded creation attempts fail; see the [API contract](api-contract.md#conventions) for the error shape.
 
 ## lists
 Columns on a board (e.g. "To Do", "In Progress", "Done").
