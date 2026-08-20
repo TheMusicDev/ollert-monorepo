@@ -15,11 +15,39 @@ interface AuthContextValue {
     email: string,
     password: string,
   ) => Promise<{ error: AuthError | null }>
+  /**
+   * `data.session` is null when the Supabase project requires email
+   * confirmation before a session is issued — callers use that to decide
+   * between "signed in immediately" and "check your email" UI.
+   */
   signUp: (
     email: string,
     password: string,
-  ) => Promise<{ error: AuthError | null }>
+  ) => Promise<{
+    data: { user: User | null; session: Session | null }
+    error: AuthError | null
+  }>
   signOut: () => Promise<void>
+  /** Sends a password-reset email; the link redirects to `/auth/callback`. */
+  resetPasswordForEmail: (email: string) => Promise<{ error: AuthError | null }>
+  /**
+   * Sets a new password for the current session — only meaningful once
+   * Supabase's recovery-link redirect has established a recovery session
+   * (see `/auth/callback`).
+   */
+  updatePassword: (password: string) => Promise<{ error: AuthError | null }>
+}
+
+/**
+ * Absolute URL Supabase redirects back to after a password-reset or
+ * email-confirmation link is clicked. See planning/architecture.md#auth-flow
+ * — this URL must also be added to the Supabase project's allowed redirect
+ * URLs.
+ */
+function authCallbackUrl(): string | undefined {
+  return typeof window !== 'undefined'
+    ? `${window.location.origin}/auth/callback`
+    : undefined
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -58,11 +86,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error }
     },
     signUp: async (email, password) => {
-      const { error } = await supabase.auth.signUp({ email, password })
-      return { error }
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: authCallbackUrl() },
+      })
+      return { data, error }
     },
     signOut: async () => {
       await supabase.auth.signOut()
+    },
+    resetPasswordForEmail: async (email) => {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: authCallbackUrl(),
+      })
+      return { error }
+    },
+    updatePassword: async (password) => {
+      const { error } = await supabase.auth.updateUser({ password })
+      return { error }
     },
   }
 
