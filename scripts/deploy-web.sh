@@ -63,7 +63,11 @@ cat > "$BUILD_DIR/.htaccess" <<'HTACCESS'
   RewriteRule ^ - [L]
 
   # Everything else is a client-side route — fall back to the SPA shell.
-  RewriteRule ^ /index.html [L]
+  # No leading slash: mod_rewrite resolves this relative to the directory
+  # containing this .htaccess, so it still works when DEPLOY_PATH is a
+  # subdirectory rather than a vhost root (a leading slash would instead
+  # resolve from the server's DocumentRoot and 404 in that case).
+  RewriteRule ^ index.html [L]
 </IfModule>
 HTACCESS
 
