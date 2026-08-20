@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 
 import { ApiError } from '@/lib/api-client'
@@ -41,30 +41,49 @@ export function OrgBoardsPage({ orgId }: { orgId: string }) {
   const [renameTarget, setRenameTarget] = useState<Board | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Board | null>(null)
 
+  // Request generation counters guard against out-of-order responses: if a
+  // newer request (from an orgId/page change or a manual retry) is issued
+  // before an older one resolves, the older response is discarded instead
+  // of overwriting fresher state.
+  const orgRequestRef = useRef(0)
+  const boardsRequestRef = useRef(0)
+
   const loadOrg = useCallback(() => {
+    const requestId = ++orgRequestRef.current
     setOrgState({ status: 'loading' })
     getOrg(orgId)
-      .then((org) => setOrgState({ status: 'ready', org }))
-      .catch((error: unknown) =>
-        setOrgState({
-          status: 'error',
-          error: errorMessage(error, 'Failed to load organization.'),
-        }),
-      )
+      .then((org) => {
+        if (orgRequestRef.current === requestId) {
+          setOrgState({ status: 'ready', org })
+        }
+      })
+      .catch((error: unknown) => {
+        if (orgRequestRef.current === requestId) {
+          setOrgState({
+            status: 'error',
+            error: errorMessage(error, 'Failed to load organization.'),
+          })
+        }
+      })
   }, [orgId])
 
   const loadBoards = useCallback(() => {
+    const requestId = ++boardsRequestRef.current
     setBoardsState({ status: 'loading' })
     listBoards(orgId, page, PAGE_SIZE)
-      .then((res) =>
-        setBoardsState({ status: 'ready', boards: res.data, meta: res.meta }),
-      )
-      .catch((error: unknown) =>
-        setBoardsState({
-          status: 'error',
-          error: errorMessage(error, 'Failed to load boards.'),
-        }),
-      )
+      .then((res) => {
+        if (boardsRequestRef.current === requestId) {
+          setBoardsState({ status: 'ready', boards: res.data, meta: res.meta })
+        }
+      })
+      .catch((error: unknown) => {
+        if (boardsRequestRef.current === requestId) {
+          setBoardsState({
+            status: 'error',
+            error: errorMessage(error, 'Failed to load boards.'),
+          })
+        }
+      })
   }, [orgId, page])
 
   useEffect(loadOrg, [loadOrg])
