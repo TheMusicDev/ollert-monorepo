@@ -1,0 +1,162 @@
+@import 'tailwindcss';
+
+/* Inter, self-hosted via @fontsource — no Google Fonts runtime dependency
+   (shared-PHP-host deploy has no CDN-fronted font loading guarantees).
+   See planning/design.md#typography. */
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+
+/* Class-based dark mode: toggled by adding/removing `.dark` on <html>,
+   not prefers-color-scheme-only. Tailwind v4 equivalent of `darkMode: 'class'`.
+   See planning/design.md#layout-pattern. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans:
+    'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif,
+    'Apple Color Emoji', 'Segoe UI Emoji';
+
+  /* Full color scale extracted verbatim from windmill-react-ui's config.js
+     (Flowbite default palette). See planning/design.md#color-palette. */
+  --color-gray-50: #f9fafb;
+  --color-gray-100: #f4f5f7;
+  --color-gray-200: #e5e7eb;
+  --color-gray-300: #d5d6d7;
+  --color-gray-400: #9e9e9e;
+  --color-gray-500: #707275;
+  --color-gray-600: #4c4f52;
+  --color-gray-700: #24262d;
+  --color-gray-800: #1a1c23;
+  --color-gray-900: #121317;
+
+  --color-cool-gray-50: #fbfdfe;
+  --color-cool-gray-100: #f1f5f9;
+  --color-cool-gray-200: #e2e8f0;
+  --color-cool-gray-300: #cfd8e3;
+  --color-cool-gray-400: #97a6ba;
+  --color-cool-gray-500: #64748b;
+  --color-cool-gray-600: #475569;
+  --color-cool-gray-700: #364152;
+  --color-cool-gray-800: #27303f;
+  --color-cool-gray-900: #1a202e;
+
+  --color-red-50: #fdf2f2;
+  --color-red-100: #fde8e8;
+  --color-red-200: #fbd5d5;
+  --color-red-300: #f8b4b4;
+  --color-red-400: #f98080;
+  --color-red-500: #f05252;
+  --color-red-600: #e02424;
+  --color-red-700: #c81e1e;
+  --color-red-800: #9b1c1c;
+  --color-red-900: #771d1d;
+
+  --color-orange-50: #fff8f1;
+  --color-orange-100: #feecdc;
+  --color-orange-200: #fcd9bd;
+  --color-orange-300: #fdba8c;
+  --color-orange-400: #ff8a4c;
+  --color-orange-500: #ff5a1f;
+  --color-orange-600: #d03801;
+  --color-orange-700: #b43403;
+  --color-orange-800: #8a2c0d;
+  --color-orange-900: #771d1d;
+
+  --color-yellow-50: #fdfdea;
+  --color-yellow-100: #fdf6b2;
+  --color-yellow-200: #fce96a;
+  --color-yellow-300: #faca15;
+  --color-yellow-400: #e3a008;
+  --color-yellow-500: #c27803;
+  --color-yellow-600: #9f580a;
+  --color-yellow-700: #8e4b10;
+  --color-yellow-800: #723b13;
+  --color-yellow-900: #633112;
+
+  --color-green-50: #f3faf7;
+  --color-green-100: #def7ec;
+  --color-green-200: #bcf0da;
+  --color-green-300: #84e1bc;
+  --color-green-400: #31c48d;
+  --color-green-500: #0e9f6e;
+  --color-green-600: #057a55;
+  --color-green-700: #046c4e;
+  --color-green-800: #03543f;
+  --color-green-900: #014737;
+
+  --color-teal-50: #edfafa;
+  --color-teal-100: #d5f5f6;
+  --color-teal-200: #afecef;
+  --color-teal-300: #7edce2;
+  --color-teal-400: #16bdca;
+  --color-teal-500: #0694a2;
+  --color-teal-600: #047481;
+  --color-teal-700: #036672;
+  --color-teal-800: #05505c;
+  --color-teal-900: #014451;
+
+  --color-blue-50: #ebf5ff;
+  --color-blue-100: #e1effe;
+  --color-blue-200: #c3ddfd;
+  --color-blue-300: #a4cafe;
+  --color-blue-400: #76a9fa;
+  --color-blue-500: #3f83f8;
+  --color-blue-600: #1c64f2;
+  --color-blue-700: #1a56db;
+  --color-blue-800: #1e429f;
+  --color-blue-900: #233876;
+
+  --color-indigo-50: #f0f5ff;
+  --color-indigo-100: #e5edff;
+  --color-indigo-200: #cddbfe;
+  --color-indigo-300: #b4c6fc;
+  --color-indigo-400: #8da2fb;
+  --color-indigo-500: #6875f5;
+  --color-indigo-600: #5850ec;
+  --color-indigo-700: #5145cd;
+  --color-indigo-800: #42389d;
+  --color-indigo-900: #362f78;
+
+  --color-purple-50: #f6f5ff;
+  --color-purple-100: #edebfe;
+  --color-purple-200: #dcd7fe;
+  --color-purple-300: #cabffd;
+  --color-purple-400: #ac94fa;
+  --color-purple-500: #9061f9;
+  --color-purple-600: #7e3af2;
+  --color-purple-700: #6c2bd9;
+  --color-purple-800: #5521b5;
+  --color-purple-900: #4a1d96;
+
+  --color-pink-50: #fdf2f8;
+  --color-pink-100: #fce8f3;
+  --color-pink-200: #fad1e8;
+  --color-pink-300: #f8b4d9;
+  --color-pink-400: #f17eb8;
+  --color-pink-500: #e74694;
+  --color-pink-600: #d61f69;
+  --color-pink-700: #bf125d;
+  --color-pink-800: #99154b;
+  --color-pink-900: #751a3d;
+
+  /* Elevated cards/dropdowns. See planning/design.md#shadow-token. */
+  --shadow-bottom:
+    0 5px 6px -7px rgba(0, 0, 0, 0.6), 0 2px 4px -5px rgba(0, 0, 0, 0.06);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+}

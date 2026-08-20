@@ -1,0 +1,173 @@
+Ollert frontend — TanStack Start (React, SPA mode), Tailwind CSS, Base UI, Supabase Auth. See the repo root `CLAUDE.md` and `planning/` for full context.
+
+# Getting Started
+
+```bash
+cp .env.example .env   # fill in your Supabase project values
+bun install
+bun --bun run dev
+```
+
+# Building For Production
+
+To build this application for production:
+
+```bash
+bun --bun run build
+```
+
+## Styling
+
+This project uses [Tailwind CSS](https://tailwindcss.com/) for styling.
+
+### Removing Tailwind CSS
+
+If you prefer not to use Tailwind CSS:
+
+1. Remove the demo pages in `src/routes/demo/`
+2. Replace the Tailwind import in `src/styles.css` with your own styles
+3. Remove `tailwindcss()` from the plugins array in `vite.config.ts`
+4. Remove `@tailwindcss/vite` and `tailwindcss` from `package.json`
+
+## Testing
+
+Vitest + React Testing Library, config in `vitest.config.ts` (kept separate from `vite.config.ts` — tests don't need the Start/Nitro build plugins). Base test utils live in `src/test/` (`setup.ts` for global setup, `test-utils.tsx` for a provider-wrapped `render`).
+
+```bash
+bun run test        # run once
+bun run test:watch  # watch mode
+```
+
+## Linting & Formatting
+
+This project uses [eslint](https://eslint.org/) and [prettier](https://prettier.io/) for linting and formatting. Eslint is configured using [tanstack/eslint-config](https://tanstack.com/config/latest/docs/eslint). The following scripts are available:
+
+```bash
+bun --bun run lint
+bun --bun run format
+bun --bun run check
+```
+
+## Deployment
+
+This app runs in TanStack Start's **SPA mode** (`spa.enabled: true` in `vite.config.ts`) — no SSR, no server functions. `bun run build` produces a static shell (`.output/public/_shell.html`) plus a client JS/CSS bundle under `.output/public/assets/` — no Node server required at runtime. Nitro is only used as a build-time tool (dev server, prerendering the shell).
+
+Deploy target is a shared PHP host over SSH, with a `.htaccess` catch-all rewrite to the shell for client-side routes. The actual sync script lives on `feat/web-deploy` — see `planning/architecture.md#deployment`.
+
+## Routing
+
+This project uses [TanStack Router](https://tanstack.com/router) with file-based routing. Routes are managed as files in `src/routes`.
+
+### Adding A Route
+
+To add a new route to your application just add a new file in the `./src/routes` directory.
+
+TanStack will automatically generate the content of the route file for you.
+
+Now that you have two routes you can use a `Link` component to navigate between them.
+
+### Adding Links
+
+To use SPA (Single Page Application) navigation you will need to import the `Link` component from `@tanstack/react-router`.
+
+```tsx
+import { Link } from '@tanstack/react-router'
+```
+
+Then anywhere in your JSX you can use it like so:
+
+```tsx
+<Link to="/about">About</Link>
+```
+
+This will create a link that will navigate to the `/about` route.
+
+More information on the `Link` component can be found in the [Link documentation](https://tanstack.com/router/v1/docs/framework/react/api/router/linkComponent).
+
+### Using A Layout
+
+In the File Based Routing setup the layout is located in `src/routes/__root.tsx`. Anything you add to the root route will appear in all the routes. The route content will appear in the JSX where you render `{children}` in the `shellComponent`.
+
+Here is an example layout that includes a header:
+
+```tsx
+import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
+
+export const Route = createRootRoute({
+  head: () => ({
+    meta: [
+      { charSet: 'utf-8' },
+      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+      { title: 'My App' },
+    ],
+  }),
+  shellComponent: ({ children }) => (
+    <html lang="en">
+      <head>
+        <HeadContent />
+      </head>
+      <body>
+        <header>
+          <nav>
+            <Link to="/">Home</Link>
+            <Link to="/about">About</Link>
+          </nav>
+        </header>
+        {children}
+        <Scripts />
+      </body>
+    </html>
+  ),
+})
+```
+
+More information on layouts can be found in the [Layouts documentation](https://tanstack.com/router/latest/docs/framework/react/guide/routing-concepts#layouts).
+
+## Server Functions / API Routes — not available here
+
+TanStack Start supports server functions (`createServerFn`) and API routes
+(a route's `server.handlers`), but both need a running Node server to
+execute — this app runs in **SPA mode** (`spa.enabled: true`, see
+Deployment below) and ships as a static bundle to a shared PHP host with no
+Node server. Don't reach for either; all backend logic lives in `/api`
+(CakePHP) and is called through `src/lib/api-client.ts`. See
+`planning/architecture.md#deployment`.
+
+## Data Fetching
+
+Fetch data with the API client (`src/lib/api-client.ts`) or the `loader`
+functionality built into TanStack Router to load data for a route before
+it's rendered — both run entirely client-side in SPA mode.
+
+For example:
+
+```tsx
+import { createFileRoute } from '@tanstack/react-router'
+
+export const Route = createFileRoute('/people')({
+  loader: async () => {
+    const response = await fetch('https://swapi.dev/api/people')
+    return response.json()
+  },
+  component: PeopleComponent,
+})
+
+function PeopleComponent() {
+  const data = Route.useLoaderData()
+  return (
+    <ul>
+      {data.results.map((person) => (
+        <li key={person.name}>{person.name}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
+Loaders simplify your data fetching logic dramatically. Check out more information in the [Loader documentation](https://tanstack.com/router/latest/docs/framework/react/guide/data-loading#loader-parameters).
+
+# Learn More
+
+You can learn more about all of the offerings from TanStack in the [TanStack documentation](https://tanstack.com).
+
+For TanStack Start specific documentation, visit [TanStack Start](https://tanstack.com/start).
