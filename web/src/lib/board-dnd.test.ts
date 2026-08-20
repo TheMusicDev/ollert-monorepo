@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { moveCard, moveList } from './board-dnd'
+import { moveCard, moveList, revertListPosition } from './board-dnd'
 import type { CardEntity, ListEntity } from './board-types'
 
 function makeCard(
@@ -134,5 +134,30 @@ describe('moveList', () => {
 
     expect(result).not.toBeNull()
     expect(result!.lists.map((list) => list.id)).toEqual(['a', 'b'])
+  })
+})
+
+describe('revertListPosition', () => {
+  it('resets only the target list position and re-sorts', () => {
+    // 'a' optimistically moved after 'c' (position 4); its PATCH then
+    // fails while 'b' is unaffected — reverting 'a' must restore sorted
+    // order without touching 'b'.
+    const lists = [
+      makeList({ id: 'b', cards: [], position: 2 }),
+      makeList({ id: 'c', cards: [], position: 3 }),
+      makeList({ id: 'a', cards: [], position: 4 }),
+    ]
+
+    const result = revertListPosition(lists, 'a', 1)
+
+    expect(result.map((list) => list.id)).toEqual(['a', 'b', 'c'])
+    expect(result.find((list) => list.id === 'a')?.position).toBe(1)
+    expect(result.find((list) => list.id === 'b')?.position).toBe(2)
+  })
+
+  it('leaves lists unchanged if the target id is not found', () => {
+    const lists = [makeList({ id: 'a', cards: [], position: 1 })]
+    const result = revertListPosition(lists, 'missing', 5)
+    expect(result.map((list) => list.id)).toEqual(['a'])
   })
 })

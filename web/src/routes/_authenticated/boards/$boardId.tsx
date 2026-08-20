@@ -24,7 +24,7 @@ import {
   updateCard,
   updateList,
 } from '@/lib/board-api'
-import { moveCard, moveList } from '@/lib/board-dnd'
+import { moveCard, moveList, revertListPosition } from '@/lib/board-dnd'
 import type { BoardDetail, CardEntity, ListEntity } from '@/lib/board-types'
 import { positionForIndex, sortByPosition } from '@/lib/positioning'
 
@@ -167,14 +167,21 @@ function BoardDetailPage() {
 
   function handleListReorder(activeListId: string, destListId: string) {
     if (activeListId === destListId) return
-    let previous: ListEntity[] = []
+    const activeList = lists.find((list) => list.id === activeListId)
+    if (!activeList) return
+    const originalPosition = activeList.position
+
     setLists((current) => {
-      previous = current
       const result = moveList(current, activeListId, destListId)
       if (!result) return current
 
       updateList(activeListId, { position: result.position }).catch(() => {
-        setLists(previous)
+        // Revert just this list's position rather than restoring a
+        // pre-move snapshot, so a second reorder that committed while this
+        // request was pending isn't discarded.
+        setLists((latest) =>
+          revertListPosition(latest, activeListId, originalPosition),
+        )
         setActionError('Could not reorder list. Please try again.')
       })
 

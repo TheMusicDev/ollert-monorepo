@@ -1,5 +1,5 @@
 import type { CardEntity, ListEntity } from './board-types'
-import { insertItemAt, moveItem, removeItem } from './positioning'
+import { insertItemAt, moveItem, removeItem, sortByPosition } from './positioning'
 
 export interface CardMoveResult {
   lists: ListEntity[]
@@ -77,4 +77,24 @@ export function moveList(
   const next = moveItem(lists, activeId, newIndex)
   const position = next.find((list) => list.id === activeId)!.position
   return { lists: next, position }
+}
+
+/**
+ * Reverts a failed list-reorder PATCH: resets `listId`'s `position` back to
+ * `originalPosition` and re-sorts `lists` accordingly. Used instead of
+ * restoring a pre-move snapshot of the whole `lists` array, which would
+ * discard any other reorder that has committed in the meantime (e.g. a
+ * second drag that started while this PATCH was still pending) — this only
+ * touches the one list whose request actually failed.
+ */
+export function revertListPosition(
+  lists: ListEntity[],
+  listId: string,
+  originalPosition: number,
+): ListEntity[] {
+  return sortByPosition(
+    lists.map((list) =>
+      list.id === listId ? { ...list, position: originalPosition } : list,
+    ),
+  )
 }
