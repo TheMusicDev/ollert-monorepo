@@ -46,7 +46,7 @@ export function RenameOrgDialog({
       onRenamed(updated)
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.fields?.name.join(' ') ?? err.message)
+        setError(err.fields?.name?.join(' ') ?? err.message)
       } else {
         setError('Something went wrong renaming the organization.')
       }
