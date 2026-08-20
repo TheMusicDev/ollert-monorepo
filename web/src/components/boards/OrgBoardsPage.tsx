@@ -41,6 +41,17 @@ export function OrgBoardsPage({ orgId }: { orgId: string }) {
   const [renameTarget, setRenameTarget] = useState<Board | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Board | null>(null)
 
+  // Reset pagination when the org changes so a page retained from a
+  // previous org doesn't get requested against the new one. Adjusting
+  // state during render (rather than in an effect keyed on orgId) means
+  // the reset lands before loadBoards' effect fires, so we never issue a
+  // wasted fetch for the old page against the new org.
+  const [prevOrgId, setPrevOrgId] = useState(orgId)
+  if (orgId !== prevOrgId) {
+    setPrevOrgId(orgId)
+    setPage(1)
+  }
+
   // Request generation counters guard against out-of-order responses: if a
   // newer request (from an orgId/page change or a manual retry) is issued
   // before an older one resolves, the older response is discarded instead
