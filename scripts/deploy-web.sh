@@ -85,6 +85,13 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
   echo "==> Dry run: syncing $BUILD_DIR/ to $DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/ (no changes will be made)"
 else
   echo "==> Syncing $BUILD_DIR/ to $DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
+  echo "    --delete is on: any file under $DEPLOY_PATH/ not present in the SPA build will be removed."
+  echo "    Only proceed if that path is dedicated to this app (see .env.deploy.example)."
+  read -r -p "    Continue? [y/N] " CONFIRM
+  if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
+    echo "Aborted." >&2
+    exit 1
+  fi
 fi
 
 rsync "${RSYNC_ARGS[@]}" "$BUILD_DIR/" "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
