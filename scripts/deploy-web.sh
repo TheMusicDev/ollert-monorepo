@@ -73,7 +73,10 @@ HTACCESS
 
 SSH_CMD="ssh -p $DEPLOY_PORT"
 if [[ -n "${DEPLOY_SSH_KEY:-}" ]]; then
-  SSH_CMD="$SSH_CMD -i $DEPLOY_SSH_KEY"
+  # Single-quote the key path: rsync's -e string is re-split by its own
+  # command parser (like a shell would), so an unquoted path containing
+  # spaces would otherwise be split into multiple arguments.
+  SSH_CMD="$SSH_CMD -i '$DEPLOY_SSH_KEY'"
 fi
 
 RSYNC_ARGS=(-avz --delete -e "$SSH_CMD")
