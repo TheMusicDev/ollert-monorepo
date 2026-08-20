@@ -68,7 +68,17 @@ function BoardDetailPage() {
       .then((detail) => {
         if (cancelled) return
         setBoard(detail)
-        setLists(sortByPosition(detail.lists))
+        // The API doesn't guarantee nested-array order for either lists or
+        // their cards (see lib/positioning.ts) — sort both up front so the
+        // `lists` state respects position order. moveCard/moveList (and the
+        // position math they build on) assume that invariant already holds
+        // going in.
+        setLists(
+          sortByPosition(detail.lists).map((list) => ({
+            ...list,
+            cards: sortByPosition(list.cards),
+          })),
+        )
       })
       .catch((err: unknown) => {
         if (cancelled) return
