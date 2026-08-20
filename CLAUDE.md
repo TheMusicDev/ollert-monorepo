@@ -50,4 +50,6 @@ This file grows as we work. When you hit a non-obvious gotcha, get corrected on 
 
 ### Learnings & Corrections
 
-_(none yet)_
+- 2026-08-20: Password-reset request UI is its own route (`/forgot-password`), not a `/login` mode — kept the login form and its validation state simple, and made the reset flow linkable/bookmarkable on its own. No convention in `planning/design.md` dictated this either way.
+- 2026-08-20: `web/tsr.config.json` needs `"routeFileIgnorePattern": "\\.test\\.tsx?$"` once `*.test.tsx` files are colocated under `src/routes/` — otherwise `tsr generate` (and the build) warns that each test file "does not export a Route".
+- 2026-08-20: `src/test/setup.ts` doesn't register global RTL cleanup (vitest.config.ts sets `globals: false`, so `@testing-library/react`'s auto-cleanup-via-global-`afterEach` never triggers) — any test file with more than one `render()` call needs its own `afterEach(() => cleanup())`.
