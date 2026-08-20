@@ -2,5 +2,6 @@
 .env
 .env.be
 .env.fe
+.env.deploy
 docker/.env
 docker/data/
