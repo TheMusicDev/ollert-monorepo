@@ -8,8 +8,12 @@ if (!API_BASE_URL) {
   )
 }
 
-/** Shape of `error.fields` on a 422 validation error — field name -> messages. */
-export type ApiErrorFields = Record<string, string[]>
+/**
+ * Shape of `error.fields` on a 422 validation error — field name -> messages.
+ * `Partial` because only the fields that actually failed validation are
+ * present; looking up an arbitrary field name can yield `undefined`.
+ */
+export type ApiErrorFields = Partial<Record<string, string[]>>
 
 /**
  * Typed error thrown for any non-2xx API response. Parsed from the standard

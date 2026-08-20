@@ -43,7 +43,7 @@ export function AddMemberForm({ onAdd }: AddMemberFormProps) {
         if (err.status === 404) {
           setError('No Ollert account found for that email.')
         } else if (err.status === 422) {
-          setError(err.fields?.email[0] ?? err.message)
+          setError(err.fields?.email?.[0] ?? err.message)
         } else {
           setError(err.message)
         }
