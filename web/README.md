@@ -123,51 +123,21 @@ export const Route = createRootRoute({
 
 More information on layouts can be found in the [Layouts documentation](https://tanstack.com/router/latest/docs/framework/react/guide/routing-concepts#layouts).
 
-## Server Functions
+## Server Functions / API Routes — not available here
 
-TanStack Start provides server functions that allow you to write server-side code that seamlessly integrates with your client components.
-
-```tsx
-import { createServerFn } from '@tanstack/react-start'
-
-const getServerTime = createServerFn({
-  method: 'GET',
-}).handler(async () => {
-  return new Date().toISOString()
-})
-
-// Use in a component
-function MyComponent() {
-  const [time, setTime] = useState('')
-
-  useEffect(() => {
-    getServerTime().then(setTime)
-  }, [])
-
-  return <div>Server time: {time}</div>
-}
-```
-
-## API Routes
-
-You can create API routes by using the `server` property in your route definitions:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-import { json } from '@tanstack/react-start'
-
-export const Route = createFileRoute('/api/hello')({
-  server: {
-    handlers: {
-      GET: () => json({ message: 'Hello, World!' }),
-    },
-  },
-})
-```
+TanStack Start supports server functions (`createServerFn`) and API routes
+(a route's `server.handlers`), but both need a running Node server to
+execute — this app runs in **SPA mode** (`spa.enabled: true`, see
+Deployment below) and ships as a static bundle to a shared PHP host with no
+Node server. Don't reach for either; all backend logic lives in `/api`
+(CakePHP) and is called through `src/lib/api-client.ts`. See
+`planning/architecture.md#deployment`.
 
 ## Data Fetching
 
-There are multiple ways to fetch data in your application. You can use TanStack Query to fetch data from a server. But you can also use the `loader` functionality built into TanStack Router to load the data for a route before it's rendered.
+Fetch data with the API client (`src/lib/api-client.ts`) or the `loader`
+functionality built into TanStack Router to load data for a route before
+it's rendered — both run entirely client-side in SPA mode.
 
 For example:
 
