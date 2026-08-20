@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { ApiError } from '@/lib/api-client'
 import type { PaginationMeta } from '@/lib/api-client'
@@ -28,15 +28,22 @@ export function OrgsPage() {
   const [renameTarget, setRenameTarget] = useState<Organization | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Organization | null>(null)
 
+  // Tracks the most recently issued request so an older, slower response
+  // can't overwrite state committed by a newer one when requests overlap.
+  const latestRequestId = useRef(0)
+
   const load = useCallback(async (targetPage: number) => {
+    const requestId = ++latestRequestId.current
     setStatus('loading')
     try {
       const response = await listOrgs(targetPage, PAGE_SIZE)
+      if (requestId !== latestRequestId.current) return
       setOrgs(response.data)
       setMeta(response.meta)
       setPage(targetPage)
       setStatus('ready')
     } catch (err) {
+      if (requestId !== latestRequestId.current) return
       setLoadError(
         err instanceof ApiError
           ? err.message
