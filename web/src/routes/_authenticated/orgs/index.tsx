@@ -1,10 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-export const Route = createFileRoute('/_authenticated/orgs/')({
-  component: OrgsListPage,
-})
+import { OrgsPage } from '@/components/orgs/OrgsPage'
 
-function OrgsListPage() {
-  // Stub — paginated org list + create-org form wired up in feat/web-orgs.
-  return <div>Orgs</div>
-}
+export const Route = createFileRoute('/_authenticated/orgs/')({
+  component: OrgsPage,
+})
