@@ -12,7 +12,7 @@ Refs: [architecture.md](planning/architecture.md), [data-model.md](planning/data
 ## Section 1 — Foundation (`feat/api-foundation`)
 
 - [ ] `composer create-project cakephp/app` skeleton in `/api`. Pin `"php": "8.5.*"` in `composer.json`. Confirm the shared deploy host actually offers PHP 8.5 (flagged in [architecture.md](planning/architecture.md#tech-stack) as unconfirmed) — adjust the pin now if it doesn't.
-- [ ] Wire DB connection to the `docker/` MariaDB service using the vars in `.env.be.example` (`DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` — must match `docker/.env`). Confirm `bin/cake migrations migrate` runs clean against it.
+- [ ] Wire DB connection to the `docker/` MariaDB service using `DATABASE_URL` in `api/.env.example` (`mysql://user:pass@host:port/db` — must match `docker/.env`). Confirm `bin/cake migrations migrate` runs clean against it.
 - [ ] Install `cakephp/migrations`, `muffin/trash`, a JWT library (e.g. `firebase/php-jwt`).
 - [ ] Migrations for all 6 tables per [data-model.md](planning/data-model.md#schema): `users`, `organizations`, `org_members`, `boards`, `lists`, `cards`.
   - UUID `id` PK (migrations `uuid` column type) and UUID FKs on every table.

@@ -1,6 +1,5 @@
 .idea/
 .env
-.env.be
 .env.fe
 docker/.env
 docker/data/
