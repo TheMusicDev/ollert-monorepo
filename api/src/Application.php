@@ -16,6 +16,7 @@ declare(strict_types=1);
  */
 namespace App;
 
+use App\Middleware\AuthMiddleware;
 use App\Middleware\CorsMiddleware;
 use App\Middleware\HostHeaderMiddleware;
 use Cake\Core\Configure;
@@ -92,6 +93,11 @@ class Application extends BaseApplication
             // caching in production could improve performance.
             // See https://github.com/CakeDC/cakephp-cached-routing
             ->add(new RoutingMiddleware($this))
+
+            // Verify the Supabase JWT on every /api/* request (except
+            // /api/health) and JIT-provision the local `users` row for it.
+            // See planning/architecture.md#auth-flow and App\Middleware\AuthMiddleware.
+            ->add(new AuthMiddleware())
 
             // Parse various types of encoded request bodies so that they are
             // available as array through $request->getData()

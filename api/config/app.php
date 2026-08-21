@@ -134,6 +134,20 @@ return [
             'duration' => '+1 years',
             'url' => env('CACHE_CAKEMODEL_URL', null),
         ],
+
+        /*
+         * Caches the raw Supabase JWKS response fetched by
+         * App\Auth\SupabaseJwksProvider (see planning/architecture.md#auth-flow).
+         * Duration is the JWKS TTL itself, not a framework cache-tuning knob —
+         * configurable via JWKS_CACHE_TTL (seconds), default 15 minutes.
+         */
+        'jwks' => [
+            'className' => FileEngine::class,
+            'prefix' => 'ollert_jwks_',
+            'path' => CACHE,
+            'serialize' => true,
+            'duration' => (int)env('JWKS_CACHE_TTL', 900),
+        ],
     ],
 
     /*
