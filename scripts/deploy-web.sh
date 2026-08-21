@@ -74,11 +74,13 @@ HTACCESS
 SSH_CMD="ssh -p $DEPLOY_PORT"
 if [[ -n "${DEPLOY_SSH_KEY:-}" ]]; then
   # Single-quote the key path: rsync's -e string is re-split by its own
-  # command parser (like a shell would), so an unquoted path containing
-  # spaces would otherwise be split into multiple arguments. Escape any
-  # embedded single quotes with the standard '\'' idiom so a path
-  # containing an apostrophe doesn't break out of the quoting.
-  ESCAPED_SSH_KEY=$(printf '%s' "$DEPLOY_SSH_KEY" | sed "s/'/'\\\\''/g")
+  # command parser, not a real shell, so an unquoted path containing
+  # spaces would otherwise be split into multiple arguments. rsync's
+  # parser doesn't understand the shell '\'' close-escape-reopen idiom
+  # for embedded quotes — it just looks for the next matching quote — so
+  # escape embedded single quotes by doubling them ('') instead, which
+  # rsync's parser does unescape correctly within a quoted argument.
+  ESCAPED_SSH_KEY=$(printf '%s' "$DEPLOY_SSH_KEY" | sed "s/'/''/g")
   SSH_CMD="$SSH_CMD -i '$ESCAPED_SSH_KEY'"
 fi
 
