@@ -1,6 +1,71 @@
 import type { CardEntity, ListEntity } from './board-types'
 import { insertItemAt, moveItem, removeItem, sortByPosition } from './positioning'
 
+/**
+ * Tracks in-flight drag-move PATCH requests keyed by the id of the entity
+ * being moved (a list id or a card id), so overlapping moves of the *same*
+ * entity can tell whether a rejection is stale — an older request already
+ * superseded by a newer one still in flight — and, when it isn't stale,
+ * which placement a rollback should land on.
+ *
+ * That placement is deliberately *not* just "whatever this request read as
+ * the starting point": if a second move for the same entity starts before
+ * the first one's PATCH has settled, the second request's starting
+ * placement is itself only an unconfirmed optimistic guess (the first
+ * request's), not something the backend actually has yet. `start` only
+ * captures a fresh baseline when no request for this entity is already
+ * pending, so the whole chain shares one baseline; `settleSuccess` advances
+ * that baseline to a request's result once it's confirmed (but only clears
+ * tracking once nothing newer is still pending); `settleFailure` returns
+ * the right rollback target — the most recent *confirmed* placement, never
+ * an intermediate optimistic one — or `undefined` for a stale rejection
+ * that should be ignored entirely.
+ */
+export class MoveRequestTracker<TPlacement> {
+  private requestIds = new Map<string, number>()
+  private baselines = new Map<string, TPlacement>()
+
+  /** Registers a new move attempt for `id`, returning its request id (pass
+   * this to `settleSuccess`/`settleFailure`) and the baseline placement a
+   * rollback should currently target if this request fails. */
+  start(
+    id: string,
+    currentPlacement: TPlacement,
+  ): { requestId: number; baseline: TPlacement } {
+    if (!this.baselines.has(id)) {
+      this.baselines.set(id, currentPlacement)
+    }
+    const requestId = (this.requestIds.get(id) ?? 0) + 1
+    this.requestIds.set(id, requestId)
+    return { requestId, baseline: this.baselines.get(id)! }
+  }
+
+  /** Call when a move PATCH for `id`/`requestId` succeeds. */
+  settleSuccess(id: string, requestId: number, placement: TPlacement): void {
+    if (this.requestIds.get(id) === requestId) {
+      // Nothing newer is pending for this entity — the chain is done.
+      this.requestIds.delete(id)
+      this.baselines.delete(id)
+    } else {
+      // A newer request is already in flight; this confirmed placement
+      // becomes the new rollback target if that request later fails.
+      this.baselines.set(id, placement)
+    }
+  }
+
+  /** Call when a move PATCH for `id`/`requestId` fails. Returns the
+   * placement to roll back to, or `undefined` if `requestId` has since been
+   * superseded by a newer request for the same `id` (a stale rejection that
+   * should be ignored). */
+  settleFailure(id: string, requestId: number): TPlacement | undefined {
+    if (this.requestIds.get(id) !== requestId) return undefined
+    const fallback = this.baselines.get(id)
+    this.requestIds.delete(id)
+    this.baselines.delete(id)
+    return fallback
+  }
+}
+
 export interface CardMoveResult {
   lists: ListEntity[]
   /** The moved card's freshly computed position — needed to PATCH it. */

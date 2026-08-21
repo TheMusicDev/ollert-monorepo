@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { moveCard, moveList, revertListPosition } from './board-dnd'
+import {
+  MoveRequestTracker,
+  moveCard,
+  moveList,
+  revertListPosition,
+} from './board-dnd'
 import type { CardEntity, ListEntity } from './board-types'
 
 function makeCard(
@@ -159,5 +164,71 @@ describe('revertListPosition', () => {
     const lists = [makeList({ id: 'a', cards: [], position: 1 })]
     const result = revertListPosition(lists, 'missing', 5)
     expect(result.map((list) => list.id)).toEqual(['a'])
+  })
+})
+
+describe('MoveRequestTracker', () => {
+  it('reverts to the starting placement when a single request fails', () => {
+    const tracker = new MoveRequestTracker<number>()
+    const { requestId } = tracker.start('list-1', 10)
+
+    expect(tracker.settleFailure('list-1', requestId)).toBe(10)
+  })
+
+  it('clears tracking once the latest request settles', () => {
+    const tracker = new MoveRequestTracker<number>()
+    const { requestId } = tracker.start('list-1', 10)
+    tracker.settleSuccess('list-1', requestId, 20)
+
+    // A fresh move now re-baselines from its own starting placement rather
+    // than reusing anything left over from the prior, now-settled chain.
+    const { baseline } = tracker.start('list-1', 20)
+    expect(baseline).toBe(20)
+  })
+
+  it('ignores a stale rejection superseded by a newer in-flight request', () => {
+    const tracker = new MoveRequestTracker<number>()
+    const { requestId: first } = tracker.start('list-1', 10)
+    tracker.start('list-1', 15) // second request starts before first settles
+
+    expect(tracker.settleFailure('list-1', first)).toBeUndefined()
+  })
+
+  it('rolls back to the original position when both chained requests fail', () => {
+    // Second request starts while the first is still pending, so it reads
+    // the first's optimistic (not yet confirmed) placement as its own
+    // baseline. If both then fail, the rollback must land on the original
+    // pre-chain placement, not that unconfirmed intermediate one.
+    const tracker = new MoveRequestTracker<number>()
+    const { requestId: first } = tracker.start('list-1', 10)
+    const { requestId: second, baseline: secondBaseline } = tracker.start(
+      'list-1',
+      15,
+    )
+    expect(secondBaseline).toBe(10)
+
+    expect(tracker.settleFailure('list-1', first)).toBeUndefined() // stale
+    expect(tracker.settleFailure('list-1', second)).toBe(10)
+  })
+
+  it('rolls back to the confirmed placement when an earlier request succeeded', () => {
+    // First request succeeds while a second is still pending; if the
+    // second then fails, rollback must land on the first's confirmed
+    // result, not the pre-chain original.
+    const tracker = new MoveRequestTracker<number>()
+    const { requestId: first } = tracker.start('list-1', 10)
+    const { requestId: second } = tracker.start('list-1', 15)
+
+    tracker.settleSuccess('list-1', first, 15) // superseded, keeps chain open
+    expect(tracker.settleFailure('list-1', second)).toBe(15)
+  })
+
+  it('tracks independent chains per id', () => {
+    const tracker = new MoveRequestTracker<number>()
+    const { requestId: listA } = tracker.start('list-a', 1)
+    const { requestId: listB } = tracker.start('list-b', 2)
+
+    expect(tracker.settleFailure('list-a', listA)).toBe(1)
+    expect(tracker.settleFailure('list-b', listB)).toBe(2)
   })
 })

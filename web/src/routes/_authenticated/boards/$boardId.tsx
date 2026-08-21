@@ -24,7 +24,7 @@ import {
   updateCard,
   updateList,
 } from '@/lib/board-api'
-import { moveCard, moveList, revertListPosition } from '@/lib/board-dnd'
+import { MoveRequestTracker, moveCard, moveList, revertListPosition } from '@/lib/board-dnd'
 import type { BoardDetail, CardEntity, ListEntity } from '@/lib/board-types'
 import { positionForIndex, sortByPosition } from '@/lib/positioning'
 
@@ -52,10 +52,12 @@ function BoardDetailPage() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [selectedCard, setSelectedCard] = useState<CardEntity | null>(null)
 
-  // Tracks the most recent list-reorder request per list id, so a stale
-  // PATCH rejection (from an earlier reorder of the same list) can tell it's
-  // no longer the latest one and skip reverting — see handleListReorder.
-  const listReorderRequestRef = useRef(new Map<string, number>())
+  // Tracks in-flight list-reorder PATCH requests per list id, so a stale
+  // rejection (from an earlier reorder of the same list) can tell it's been
+  // superseded and either skip reverting or roll back to the right
+  // position instead of an unconfirmed intermediate one — see
+  // handleListReorder.
+  const listReorderTrackerRef = useRef(new MoveRequestTracker<number>())
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -174,34 +176,44 @@ function BoardDetailPage() {
     if (activeListId === destListId) return
     const activeList = lists.find((list) => list.id === activeListId)
     if (!activeList) return
-    const originalPosition = activeList.position
 
-    // Claim this as the latest in-flight reorder request for this list.
-    const requestId =
-      (listReorderRequestRef.current.get(activeListId) ?? 0) + 1
-    listReorderRequestRef.current.set(activeListId, requestId)
+    const { requestId } = listReorderTrackerRef.current.start(
+      activeListId,
+      activeList.position,
+    )
 
     setLists((current) => {
       const result = moveList(current, activeListId, destListId)
       if (!result) return current
 
-      updateList(activeListId, { position: result.position }).catch(() => {
-        // If a newer reorder of this same list has started since this PATCH
-        // was fired, this rejection is stale: that newer request now owns
-        // the list's optimistic state (and may already have committed), so
-        // reverting to this request's older position would discard it.
-        if (listReorderRequestRef.current.get(activeListId) !== requestId) {
-          return
-        }
+      updateList(activeListId, { position: result.position })
+        .then(() => {
+          listReorderTrackerRef.current.settleSuccess(
+            activeListId,
+            requestId,
+            result.position,
+          )
+        })
+        .catch(() => {
+          // A stale rejection (superseded by a newer reorder of this same
+          // list) returns undefined — that newer request now owns the
+          // list's optimistic state (and may already have committed), so
+          // there's nothing to revert.
+          const fallbackPosition = listReorderTrackerRef.current.settleFailure(
+            activeListId,
+            requestId,
+          )
+          if (fallbackPosition === undefined) return
 
-        // Revert just this list's position rather than restoring a
-        // pre-move snapshot, so a second reorder that committed while this
-        // request was pending isn't discarded.
-        setLists((latest) =>
-          revertListPosition(latest, activeListId, originalPosition),
-        )
-        setActionError('Could not reorder list. Please try again.')
-      })
+          // Revert just this list's position — to the last confirmed
+          // placement, not necessarily this request's own starting point —
+          // rather than restoring a pre-move snapshot, so a second reorder
+          // that committed while this request was pending isn't discarded.
+          setLists((latest) =>
+            revertListPosition(latest, activeListId, fallbackPosition),
+          )
+          setActionError('Could not reorder list. Please try again.')
+        })
 
       return result.lists
     })
