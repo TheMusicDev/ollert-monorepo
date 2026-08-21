@@ -17,6 +17,7 @@ declare(strict_types=1);
 namespace App\Test\TestCase;
 
 use App\Application;
+use App\Middleware\AuthMiddleware;
 use App\Middleware\CorsMiddleware;
 use App\Middleware\HostHeaderMiddleware;
 use Cake\Core\Configure;
@@ -87,5 +88,7 @@ class ApplicationTest extends TestCase
         $this->assertInstanceOf(AssetMiddleware::class, $middleware->current());
         $middleware->seek(4);
         $this->assertInstanceOf(RoutingMiddleware::class, $middleware->current());
+        $middleware->seek(5);
+        $this->assertInstanceOf(AuthMiddleware::class, $middleware->current());
     }
 }

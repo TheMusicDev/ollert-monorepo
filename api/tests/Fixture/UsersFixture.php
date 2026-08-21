@@ -8,7 +8,13 @@ use Cake\TestSuite\Fixture\TestFixture;
 /**
  * Users fixture. Three rows covering the org-membership/quota test scenarios
  * shared across F's helpers: an org owner, an explicit (non-owner) member,
- * and an outsider with no relation to the fixture org.
+ * and an outsider with no relation to the fixture org. A fourth "power user"
+ * row covers the over-quota case. Table schema comes from the migrated test
+ * DB (see config/Migrations/20260821203724_CreateUsers.php); other tests
+ * (e.g. AuthMiddlewareTest) insert whatever additional rows they need via
+ * `UsersTable::findOrCreate()`/`save()` directly, scoped by their own
+ * randomly generated `supabase_uid`, so they don't collide with these seed
+ * rows.
  */
 class UsersFixture extends TestFixture
 {
