@@ -289,4 +289,23 @@ describe('MoveRequestTracker', () => {
     expect(tracker.settleFailure('list-a', listA)).toBe(1)
     expect(tracker.settleFailure('list-b', listB)).toBe(2)
   })
+
+  it('does not resurrect a stale baseline when an older request succeeds after the newer one already closed the chain', () => {
+    const tracker = new MoveRequestTracker<number>()
+    const { requestId: first } = tracker.start('list-1', 10)
+    const { requestId: second } = tracker.start('list-1', 10)
+
+    // Newer request settles first and, seeing itself as latest, closes the
+    // chain (clears tracking) — this is the normal/expected path.
+    tracker.settleSuccess('list-1', second, 20)
+
+    // Older request's PATCH resolves late, out of order.
+    tracker.settleSuccess('list-1', first, 15)
+
+    // Since the chain was already closed, a brand-new move should re-baseline
+    // from its own current placement (25) rather than reusing anything left
+    // behind by the late-arriving, already-superseded older success.
+    const { baseline } = tracker.start('list-1', 25)
+    expect(baseline).toBe(25)
+  })
 })

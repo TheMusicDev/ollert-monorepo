@@ -46,11 +46,17 @@ export class MoveRequestTracker<TPlacement> {
       // Nothing newer is pending for this entity — the chain is done.
       this.requestIds.delete(id)
       this.baselines.delete(id)
-    } else {
-      // A newer request is already in flight; this confirmed placement
+    } else if (this.requestIds.has(id)) {
+      // A newer request is still in flight; this confirmed placement
       // becomes the new rollback target if that request later fails.
       this.baselines.set(id, placement)
     }
+    // Else: this request isn't the latest AND the chain has already closed
+    // (e.g. a newer request for this id settled first and cleared
+    // tracking). This success arrived late and out of order — it's stale,
+    // so it must not resurrect a baseline; doing so would leave a rollback
+    // target behind that a later, unrelated move could pick up instead of
+    // re-baselining from its own current placement.
   }
 
   /** Call when a move PATCH for `id`/`requestId` fails. Returns the
