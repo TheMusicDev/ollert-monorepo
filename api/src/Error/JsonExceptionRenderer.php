@@ -178,9 +178,17 @@ class JsonExceptionRenderer implements ExceptionRendererInterface
             $body['error']['fields'] = $fields;
         }
 
+        // JSON_INVALID_UTF8_SUBSTITUTE ensures a malformed-UTF-8 exception
+        // message or field error (e.g. from a corrupted upstream payload)
+        // can never make json_encode() return false and silently collapse
+        // the envelope into an empty body — invalid sequences are replaced
+        // with U+FFFD instead.
         return $response
             ->withType('application/json')
-            ->withStringBody((string)json_encode($body, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+            ->withStringBody((string)json_encode(
+                $body,
+                JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE,
+            ));
     }
 
     /**

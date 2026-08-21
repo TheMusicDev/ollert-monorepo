@@ -326,4 +326,26 @@ class JsonExceptionRendererTest extends TestCase
 
         $this->assertStringContainsString('application/json', $response->getHeaderLine('Content-Type'));
     }
+
+    /**
+     * An exception message containing invalid UTF-8 must not collapse the
+     * envelope into an empty body: `json_encode()` would otherwise return
+     * `false`, and casting that to string silently discards the promised
+     * `code` (and any `fields`). Invalid bytes are substituted instead.
+     *
+     * @return void
+     */
+    public function testInvalidUtf8MessageStillRendersEnvelope(): void
+    {
+        Configure::write('debug', true);
+
+        $exception = new ApiException("Bad byte: \xB1\x31", 'bad_input', 400);
+        $renderer = new JsonExceptionRenderer($exception, $this->apiRequest('/api/orgs'));
+
+        [$json, $status] = $this->decode($renderer->render());
+
+        $this->assertSame(400, $status);
+        $this->assertSame('bad_input', $json['error']['code']);
+        $this->assertNotSame('', $json['error']['message']);
+    }
 }
