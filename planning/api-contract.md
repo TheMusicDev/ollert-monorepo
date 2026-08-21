@@ -20,6 +20,8 @@ JSON REST API under `/api/`. Every route (except a health check) requires `Autho
 * `PATCH /api/orgs/:id` - rename org (owner or member)
 * `DELETE /api/orgs/:id` - owner only; soft delete (see [Data Model](data-model.md))
 
+Org resource shape adds one server-computed field beyond the raw `organizations` row: `is_owner` (boolean) — `true` when `owner_id` equals the requesting user's local `users.id`, `false` otherwise. The frontend only ever holds the Supabase identity (`session.user.id`), never the local id behind `owner_id`, and there's no `/me` endpoint — so without this field the FE has no way to know "am I this org's owner" client-side. Computed per-request/per-row (not stored) by the org-membership helper's `isOrgOwner($userId, $orgId)` (`App\Service\OrgAuthorizationService`, see `feat/api-shared-helpers`); `GET /api/orgs` and `GET /api/orgs/:id` (`feat/api-organizations`) are responsible for actually setting it on each returned resource. Resolves the open item in [log.md](log.md).
+
 ## Org Members
 * `GET /api/orgs/:id/members` - paginated
 * `POST /api/orgs/:id/members` - add a member by email (must already have an Ollert/Supabase account); grants access to every board in the org
