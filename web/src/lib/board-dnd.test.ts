@@ -308,4 +308,23 @@ describe('MoveRequestTracker', () => {
     const { baseline } = tracker.start('list-1', 25)
     expect(baseline).toBe(25)
   })
+
+  it('does not let a late out-of-order success overwrite a newer confirmed baseline while a request is still pending', () => {
+    // Three overlapping requests for the same id: first and third are still
+    // pending when second settles (success) — that correctly updates the
+    // baseline. If first then settles (also success) after second, but
+    // before third, it must not clobber second's newer confirmed baseline
+    // with its own now-stale placement.
+    const tracker = new MoveRequestTracker<number>()
+    const { requestId: first } = tracker.start('list-1', 10)
+    const { requestId: second } = tracker.start('list-1', 10)
+    const { requestId: third } = tracker.start('list-1', 10)
+
+    tracker.settleSuccess('list-1', second, 20) // second confirms, third still pending
+    tracker.settleSuccess('list-1', first, 15) // first arrives late, out of order
+
+    // Third then fails — rollback should land on second's confirmed 20, not
+    // first's stale 15.
+    expect(tracker.settleFailure('list-1', third)).toBe(20)
+  })
 })

@@ -24,6 +24,11 @@ import { insertItemAt, moveItem, removeItem, sortByPosition } from './positionin
 export class MoveRequestTracker<TPlacement> {
   private requestIds = new Map<string, number>()
   private baselines = new Map<string, TPlacement>()
+  /** The requestId of the most recent success that has actually updated
+   * `baselines` for this id (while the chain is still open), so a later,
+   * out-of-order success from an older request can be told apart from one
+   * that's newer than everything applied so far. */
+  private lastAppliedRequestId = new Map<string, number>()
 
   /** Registers a new move attempt for `id`, returning its request id (pass
    * this to `settleSuccess`/`settleFailure`) and the baseline placement a
@@ -46,17 +51,24 @@ export class MoveRequestTracker<TPlacement> {
       // Nothing newer is pending for this entity — the chain is done.
       this.requestIds.delete(id)
       this.baselines.delete(id)
-    } else if (this.requestIds.has(id)) {
-      // A newer request is still in flight; this confirmed placement
-      // becomes the new rollback target if that request later fails.
+      this.lastAppliedRequestId.delete(id)
+    } else if (
+      this.requestIds.has(id) &&
+      requestId > (this.lastAppliedRequestId.get(id) ?? 0)
+    ) {
+      // A newer request is still in flight, and this success is more recent
+      // than anything already applied to the baseline — it becomes the new
+      // rollback target if that still-pending request later fails.
       this.baselines.set(id, placement)
+      this.lastAppliedRequestId.set(id, requestId)
     }
-    // Else: this request isn't the latest AND the chain has already closed
-    // (e.g. a newer request for this id settled first and cleared
-    // tracking). This success arrived late and out of order — it's stale,
-    // so it must not resurrect a baseline; doing so would leave a rollback
-    // target behind that a later, unrelated move could pick up instead of
-    // re-baselining from its own current placement.
+    // Else: either the chain has already closed (a newer request for this
+    // id settled first and cleared tracking), or this success is older than
+    // one already applied (e.g. three overlapping requests where the
+    // second's success was already used to update the baseline before the
+    // first's late, out-of-order success arrives). Either way this success
+    // is stale and must not resurrect/overwrite the baseline with a
+    // superseded placement.
   }
 
   /** Call when a move PATCH for `id`/`requestId` fails. Returns the
@@ -68,6 +80,7 @@ export class MoveRequestTracker<TPlacement> {
     const fallback = this.baselines.get(id)
     this.requestIds.delete(id)
     this.baselines.delete(id)
+    this.lastAppliedRequestId.delete(id)
     return fallback
   }
 }
