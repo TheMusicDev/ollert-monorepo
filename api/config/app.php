@@ -1,5 +1,6 @@
 <?php
 
+use App\Error\JsonExceptionRenderer;
 use Cake\Cache\Engine\FileEngine;
 use Cake\Database\Connection;
 use Cake\Database\Driver\Mysql;
@@ -180,6 +181,13 @@ return [
         'trace' => true,
         'ignoredDeprecationPaths' => [],
         'traceFormat' => null,
+        /*
+         * Renders `/api/*` exceptions as the standard JSON error envelope
+         * (see planning/api-contract.md#error-response-shape). Requests
+         * outside `/api` fall back to the stock HTML renderer — see
+         * App\Error\JsonExceptionRenderer for details.
+         */
+        'exceptionRenderer' => JsonExceptionRenderer::class,
     ],
 
     /*
