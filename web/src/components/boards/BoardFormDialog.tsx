@@ -67,7 +67,7 @@ export function BoardFormDialog({
     } catch (error) {
       setSubmitting(false)
       if (error instanceof ApiError) {
-        const titleFieldError = error.fields?.title[0]
+        const titleFieldError = error.fields?.title?.[0]
         if (titleFieldError) {
           setFieldError(titleFieldError)
         } else {
