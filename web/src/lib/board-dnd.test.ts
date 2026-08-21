@@ -4,6 +4,7 @@ import {
   MoveRequestTracker,
   moveCard,
   moveList,
+  revertCardPlacement,
   revertListPosition,
 } from './board-dnd'
 import type { CardEntity, ListEntity } from './board-types'
@@ -164,6 +165,63 @@ describe('revertListPosition', () => {
     const lists = [makeList({ id: 'a', cards: [], position: 1 })]
     const result = revertListPosition(lists, 'missing', 5)
     expect(result.map((list) => list.id)).toEqual(['a'])
+  })
+})
+
+describe('revertCardPlacement', () => {
+  it('resets only the target card position within its current list', () => {
+    const a = makeCard({ id: 'a', list_id: 'list-1', position: 4 })
+    const b = makeCard({ id: 'b', list_id: 'list-1', position: 2 })
+    const c = makeCard({ id: 'c', list_id: 'list-1', position: 3 })
+    const lists = [makeList({ id: 'list-1', cards: [b, c, a] })]
+
+    const result = revertCardPlacement(lists, 'a', 'list-1', 1)
+
+    const list1 = result.find((l) => l.id === 'list-1')!
+    expect(list1.cards.map((card) => card.id)).toEqual(['a', 'b', 'c'])
+    expect(list1.cards.find((card) => card.id === 'a')?.position).toBe(1)
+    expect(list1.cards.find((card) => card.id === 'a')?.list_id).toBe(
+      'list-1',
+    )
+  })
+
+  it('moves the card back to its original list and restores position', () => {
+    const a = makeCard({ id: 'a', list_id: 'list-2', position: 1.5 })
+    const x = makeCard({ id: 'x', list_id: 'list-2', position: 1 })
+    const y = makeCard({ id: 'y', list_id: 'list-2', position: 2 })
+    const b = makeCard({ id: 'b', list_id: 'list-1', position: 2 })
+    const lists = [
+      makeList({ id: 'list-1', cards: [b] }),
+      makeList({ id: 'list-2', cards: [x, a, y] }),
+    ]
+
+    // 'a' was optimistically moved from list-1 to list-2; its PATCH fails,
+    // so it should be restored to list-1 at its original position.
+    const result = revertCardPlacement(lists, 'a', 'list-1', 1)
+
+    const list1 = result.find((l) => l.id === 'list-1')!
+    const list2 = result.find((l) => l.id === 'list-2')!
+    expect(list1.cards.map((card) => card.id)).toEqual(['a', 'b'])
+    expect(list1.cards.find((card) => card.id === 'a')?.position).toBe(1)
+    expect(list1.cards.find((card) => card.id === 'a')?.list_id).toBe(
+      'list-1',
+    )
+    expect(list2.cards.map((card) => card.id)).toEqual(['x', 'y'])
+  })
+
+  it('leaves lists unchanged if the card is not found', () => {
+    const lists = [makeList({ id: 'list-1', cards: [] })]
+    const result = revertCardPlacement(lists, 'missing', 'list-1', 1)
+    expect(result).toBe(lists)
+  })
+
+  it('leaves the card where it is if its original list no longer exists', () => {
+    const a = makeCard({ id: 'a', list_id: 'list-2', position: 1 })
+    const lists = [makeList({ id: 'list-2', cards: [a] })]
+
+    const result = revertCardPlacement(lists, 'a', 'deleted-list', 1)
+
+    expect(result).toBe(lists)
   })
 })
 

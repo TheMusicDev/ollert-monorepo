@@ -163,3 +163,65 @@ export function revertListPosition(
     ),
   )
 }
+
+/**
+ * Reverts a failed card-move PATCH: puts `cardId` back in `originalListId`
+ * at `originalPosition`, re-sorting both the list the card is currently in
+ * and (if different) the list it's being restored to. Mirrors
+ * `revertListPosition`'s "touch only what actually failed, not a whole
+ * snapshot" approach, but a card move can also change which list the card
+ * belongs to (not just its position within one), so this restores
+ * membership as well as position — leaving any other card's own
+ * since-committed move untouched.
+ */
+export function revertCardPlacement(
+  lists: ListEntity[],
+  cardId: string,
+  originalListId: string,
+  originalPosition: number,
+): ListEntity[] {
+  const currentListIndex = lists.findIndex((list) =>
+    list.cards.some((card) => card.id === cardId),
+  )
+  if (currentListIndex === -1) return lists
+
+  const card = lists[currentListIndex].cards.find((c) => c.id === cardId)!
+  const restoredCard = {
+    ...card,
+    list_id: originalListId,
+    position: originalPosition,
+  }
+
+  if (lists[currentListIndex].id === originalListId) {
+    const cards = sortByPosition(
+      lists[currentListIndex].cards.map((c) =>
+        c.id === cardId ? restoredCard : c,
+      ),
+    )
+    return lists.map((list, i) =>
+      i === currentListIndex ? { ...list, cards } : list,
+    )
+  }
+
+  const originalListIndex = lists.findIndex(
+    (list) => list.id === originalListId,
+  )
+  if (originalListIndex === -1) {
+    // The list the card originally belonged to no longer exists (e.g. it
+    // was deleted while the move was in flight) — leave the card where it
+    // currently is rather than dropping it into nothing.
+    return lists
+  }
+
+  const withoutCard = removeItem(lists[currentListIndex].cards, cardId)
+  const restoredOriginCards = sortByPosition([
+    ...lists[originalListIndex].cards,
+    restoredCard,
+  ])
+
+  return lists.map((list, i) => {
+    if (i === currentListIndex) return { ...list, cards: withoutCard }
+    if (i === originalListIndex) return { ...list, cards: restoredOriginCards }
+    return list
+  })
+}

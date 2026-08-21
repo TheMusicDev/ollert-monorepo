@@ -24,7 +24,13 @@ import {
   updateCard,
   updateList,
 } from '@/lib/board-api'
-import { MoveRequestTracker, moveCard, moveList, revertListPosition } from '@/lib/board-dnd'
+import {
+  MoveRequestTracker,
+  moveCard,
+  moveList,
+  revertCardPlacement,
+  revertListPosition,
+} from '@/lib/board-dnd'
 import type { BoardDetail, CardEntity, ListEntity } from '@/lib/board-types'
 import { positionForIndex, sortByPosition } from '@/lib/positioning'
 
@@ -52,12 +58,15 @@ function BoardDetailPage() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [selectedCard, setSelectedCard] = useState<CardEntity | null>(null)
 
-  // Tracks in-flight list-reorder PATCH requests per list id, so a stale
-  // rejection (from an earlier reorder of the same list) can tell it's been
-  // superseded and either skip reverting or roll back to the right
-  // position instead of an unconfirmed intermediate one — see
-  // handleListReorder.
+  // Tracks in-flight list-reorder / card-move PATCH requests per entity id,
+  // so a stale rejection (from an earlier move of the same entity) can tell
+  // it's been superseded and either skip reverting or roll back to the
+  // right placement instead of an unconfirmed intermediate one — see
+  // handleListReorder and handleCardMove.
   const listReorderTrackerRef = useRef(new MoveRequestTracker<number>())
+  const cardMoveTrackerRef = useRef(
+    new MoveRequestTracker<{ listId: string; position: number }>(),
+  )
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -226,9 +235,12 @@ function BoardDetailPage() {
     const destListId =
       overData.type === 'list' ? overData.listId : overData.card.list_id
 
-    let previous: ListEntity[] = []
+    const { requestId } = cardMoveTrackerRef.current.start(card.id, {
+      listId: card.list_id,
+      position: card.position,
+    })
+
     setLists((current) => {
-      previous = current
       const destList = current.find((list) => list.id === destListId)
       if (!destList) return current
 
@@ -246,10 +258,38 @@ function BoardDetailPage() {
       }
       if (destListId !== card.list_id) patch.list_id = destListId
 
-      updateCard(card.id, patch).catch(() => {
-        setLists(previous)
-        setActionError('Could not move card. Please try again.')
-      })
+      updateCard(card.id, patch)
+        .then(() => {
+          cardMoveTrackerRef.current.settleSuccess(card.id, requestId, {
+            listId: destListId,
+            position: result.position,
+          })
+        })
+        .catch(() => {
+          // Stale rejection (superseded by a newer move of this same
+          // card) — that newer request now owns the card's optimistic
+          // state, so there's nothing to revert.
+          const fallback = cardMoveTrackerRef.current.settleFailure(
+            card.id,
+            requestId,
+          )
+          if (fallback === undefined) return
+
+          // Restore both list membership and position — a card move,
+          // unlike a list reorder, can also change which list the card
+          // lives in — to the last confirmed placement rather than a
+          // pre-move snapshot, so any other card's since-committed move
+          // isn't discarded.
+          setLists((latest) =>
+            revertCardPlacement(
+              latest,
+              card.id,
+              fallback.listId,
+              fallback.position,
+            ),
+          )
+          setActionError('Could not move card. Please try again.')
+        })
 
       return result.lists
     })
