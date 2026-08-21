@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ab24fd22986bdbe9563591d51a5dd95f",
+    "content-hash": "5b9a23638bd0c600c37b21e91eba7e9a",
     "packages": [
         {
             "name": "cakephp/cakephp",
@@ -373,6 +373,72 @@
             "time": "2026-07-18T12:35:13+00:00"
         },
         {
+            "name": "firebase/php-jwt",
+            "version": "v7.1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/googleapis/php-jwt.git",
+                "reference": "b374a5d1a4f1f67fadc2165cdb284645945e2fc0"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/googleapis/php-jwt/zipball/b374a5d1a4f1f67fadc2165cdb284645945e2fc0",
+                "reference": "b374a5d1a4f1f67fadc2165cdb284645945e2fc0",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.0"
+            },
+            "require-dev": {
+                "guzzlehttp/guzzle": "^7.4",
+                "phpfastcache/phpfastcache": "^9.2",
+                "phpseclib/phpseclib": "~3.0",
+                "phpspec/prophecy-phpunit": "^2.0",
+                "phpunit/phpunit": "^9.5",
+                "psr/cache": "^2.0||^3.0",
+                "psr/http-client": "^1.0",
+                "psr/http-factory": "^1.0"
+            },
+            "suggest": {
+                "ext-sodium": "Support EdDSA (Ed25519) signatures",
+                "paragonie/sodium_compat": "Support EdDSA (Ed25519) signatures when libsodium is not present",
+                "phpseclib/phpseclib": "Support PS256 (RSASSA-PSS) signatures"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Firebase\\JWT\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "authors": [
+                {
+                    "name": "Neuman Vong",
+                    "email": "neuman+pear@twilio.com",
+                    "role": "Developer"
+                },
+                {
+                    "name": "Anant Narayanan",
+                    "email": "anant@php.net",
+                    "role": "Developer"
+                }
+            ],
+            "description": "A simple library to encode and decode JSON Web Tokens (JWT) in PHP. Should conform to the current spec.",
+            "homepage": "https://github.com/googleapis/php-jwt",
+            "keywords": [
+                "jwt",
+                "php"
+            ],
+            "support": {
+                "issues": "https://github.com/googleapis/php-jwt/issues",
+                "source": "https://github.com/googleapis/php-jwt/tree/v7.1.0"
+            },
+            "time": "2026-06-11T17:54:14+00:00"
+        },
+        {
             "name": "laminas/laminas-diactoros",
             "version": "3.8.0",
             "source": {
@@ -674,6 +740,69 @@
                 }
             ],
             "time": "2026-05-24T12:32:40+00:00"
+        },
+        {
+            "name": "muffin/trash",
+            "version": "4.2.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/UseMuffin/Trash.git",
+                "reference": "93bd5397a824f1d3cc57045e0263d234bc3be63f"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/UseMuffin/Trash/zipball/93bd5397a824f1d3cc57045e0263d234bc3be63f",
+                "reference": "93bd5397a824f1d3cc57045e0263d234bc3be63f",
+                "shasum": ""
+            },
+            "require": {
+                "cakephp/orm": "^5.0.0",
+                "php": ">=8.1"
+            },
+            "require-dev": {
+                "cakephp/cakephp": "^5.0.0",
+                "cakephp/cakephp-codesniffer": "^5.0",
+                "phpunit/phpunit": "^10.5.58 || ^11.5.3 || ^12.4"
+            },
+            "type": "cakephp-plugin",
+            "autoload": {
+                "psr-4": {
+                    "Muffin\\Trash\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Jad Bitar",
+                    "homepage": "http://jadb.io",
+                    "role": "Author"
+                },
+                {
+                    "name": "ADmad",
+                    "homepage": "https://github.com/ADmad",
+                    "role": "Author"
+                },
+                {
+                    "name": "Others",
+                    "homepage": "https://github.com/usemuffin/trash/graphs/contributors"
+                }
+            ],
+            "description": "Adds soft delete support to CakePHP ORM tables.",
+            "homepage": "https://github.com/usemuffin/trash",
+            "keywords": [
+                "cakephp",
+                "muffin",
+                "orm",
+                "trash"
+            ],
+            "support": {
+                "issues": "https://github.com/usemuffin/trash/issues",
+                "source": "https://github.com/usemuffin/trash"
+            },
+            "time": "2026-03-24T16:51:06+00:00"
         },
         {
             "name": "psr/clock",
