@@ -16,6 +16,7 @@ declare(strict_types=1);
  */
 namespace App;
 
+use App\Middleware\CorsMiddleware;
 use App\Middleware\HostHeaderMiddleware;
 use Cake\Core\Configure;
 use Cake\Core\ContainerInterface;
@@ -66,6 +67,12 @@ class Application extends BaseApplication
     public function middleware(MiddlewareQueue $middlewareQueue): MiddlewareQueue
     {
         $middlewareQueue
+            // Apply the CORS allow-list policy first, so its headers land on every
+            // response (including error responses further down the queue), and so
+            // CORS preflight (OPTIONS) requests are answered before routing/CSRF.
+            // See planning/architecture.md#cors.
+            ->add(new CorsMiddleware())
+
             // Catch any exceptions in the lower layers,
             // and make an error page/response
             ->add(new ErrorHandlerMiddleware(Configure::read('Error'), $this))
