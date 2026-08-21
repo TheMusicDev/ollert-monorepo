@@ -327,4 +327,32 @@ describe('MoveRequestTracker', () => {
     // first's stale 15.
     expect(tracker.settleFailure('list-1', third)).toBe(20)
   })
+
+  it('keeps tracking a still-pending older request when a newer one settles first', () => {
+    // A and B are both in flight for the same id; B (started after A)
+    // settles successfully first while A is still pending. That must not be
+    // treated as "nothing else outstanding, chain closed" — a still-pending
+    // older request needs its eventual settlement handled correctly, not
+    // silently dropped (or worse, have a later unrelated move for this same
+    // id reuse its now-stale request id).
+    const tracker = new MoveRequestTracker<number>()
+    const { requestId: a } = tracker.start('list-1', 10)
+    const { requestId: b } = tracker.start('list-1', 10)
+
+    tracker.settleSuccess('list-1', b, 20) // newer settles first; a still pending
+
+    // A third, unrelated move starts for the same id while `a` is still
+    // pending — it must build on the still-open chain (and B's confirmed
+    // baseline), not get treated as a fresh chain.
+    const { requestId: c, baseline: cBaseline } = tracker.start('list-1', 20)
+    expect(cBaseline).toBe(20)
+
+    // A's late success now arrives — it's older than B's already-applied
+    // result, so it must not clobber the baseline `c` is relying on.
+    tracker.settleSuccess('list-1', a, 15)
+
+    // `c` then fails — rollback must land on B's confirmed placement (20),
+    // not be corrupted/lost by request-id reuse across the two chains.
+    expect(tracker.settleFailure('list-1', c)).toBe(20)
+  })
 })

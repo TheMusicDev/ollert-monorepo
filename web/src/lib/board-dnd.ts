@@ -12,23 +12,34 @@ import { insertItemAt, moveItem, removeItem, sortByPosition } from './positionin
  * the starting point": if a second move for the same entity starts before
  * the first one's PATCH has settled, the second request's starting
  * placement is itself only an unconfirmed optimistic guess (the first
- * request's), not something the backend actually has yet. `start` only
- * captures a fresh baseline when no request for this entity is already
- * pending, so the whole chain shares one baseline; `settleSuccess` advances
- * that baseline to a request's result once it's confirmed (but only clears
- * tracking once nothing newer is still pending); `settleFailure` returns
- * the right rollback target — the most recent *confirmed* placement, never
- * an intermediate optimistic one — or `undefined` for a stale rejection
- * that should be ignored entirely.
+ * request's), not something the backend actually has yet.
+ *
+ * Rather than accumulate a special case per newly-discovered interleaving
+ * of overlapping requests, this is built on two invariants, each enforced
+ * in exactly one place:
+ *
+ *  1. A request's id (`issuedRequestId`) is unique and monotonically
+ *     increasing for the entity's *entire lifetime* — it is never reused,
+ *     even after every in-flight request for that id has settled and a
+ *     later, unrelated move starts a fresh chain. This is what lets any
+ *     settlement, no matter how late or out of order, always be compared
+ *     against "how recent is this really" without ambiguity.
+ *  2. A success only ever advances `baselines` when its requestId is
+ *     strictly greater than the highest one already applied
+ *     (`appliedRequestId`) — full stop. A failure only ever triggers a
+ *     rollback when its requestId is the single highest one ever issued
+ *     (`issuedRequestId`) — i.e. it's literally the most recent attempt, so
+ *     nothing newer has since taken over the optimistic UI state.
+ *
+ * `start` only captures a fresh baseline (from the caller's current,
+ * on-screen placement) when no request for this id is still pending —
+ * otherwise it reuses whatever baseline the still-open chain already has.
  */
 export class MoveRequestTracker<TPlacement> {
-  private requestIds = new Map<string, number>()
+  private issuedRequestId = new Map<string, number>()
+  private pendingCount = new Map<string, number>()
   private baselines = new Map<string, TPlacement>()
-  /** The requestId of the most recent success that has actually updated
-   * `baselines` for this id (while the chain is still open), so a later,
-   * out-of-order success from an older request can be told apart from one
-   * that's newer than everything applied so far. */
-  private lastAppliedRequestId = new Map<string, number>()
+  private appliedRequestId = new Map<string, number>()
 
   /** Registers a new move attempt for `id`, returning its request id (pass
    * this to `settleSuccess`/`settleFailure`) and the baseline placement a
@@ -37,38 +48,31 @@ export class MoveRequestTracker<TPlacement> {
     id: string,
     currentPlacement: TPlacement,
   ): { requestId: number; baseline: TPlacement } {
-    if (!this.baselines.has(id)) {
+    if ((this.pendingCount.get(id) ?? 0) === 0) {
+      // No chain is currently open for this id — start a fresh one from
+      // whatever's actually on screen right now, discarding any leftover
+      // bookkeeping from a prior, fully-settled chain.
       this.baselines.set(id, currentPlacement)
+      this.appliedRequestId.delete(id)
     }
-    const requestId = (this.requestIds.get(id) ?? 0) + 1
-    this.requestIds.set(id, requestId)
+    const requestId = (this.issuedRequestId.get(id) ?? 0) + 1
+    this.issuedRequestId.set(id, requestId)
+    this.pendingCount.set(id, (this.pendingCount.get(id) ?? 0) + 1)
     return { requestId, baseline: this.baselines.get(id)! }
   }
 
   /** Call when a move PATCH for `id`/`requestId` succeeds. */
   settleSuccess(id: string, requestId: number, placement: TPlacement): void {
-    if (this.requestIds.get(id) === requestId) {
-      // Nothing newer is pending for this entity — the chain is done.
-      this.requestIds.delete(id)
-      this.baselines.delete(id)
-      this.lastAppliedRequestId.delete(id)
-    } else if (
-      this.requestIds.has(id) &&
-      requestId > (this.lastAppliedRequestId.get(id) ?? 0)
-    ) {
-      // A newer request is still in flight, and this success is more recent
-      // than anything already applied to the baseline — it becomes the new
-      // rollback target if that still-pending request later fails.
+    this.decrementPending(id)
+    if (requestId > (this.appliedRequestId.get(id) ?? 0)) {
+      // Strictly newer than anything already applied for this id (whether
+      // or not another request is still pending) — it becomes the new
+      // rollback target.
+      this.appliedRequestId.set(id, requestId)
       this.baselines.set(id, placement)
-      this.lastAppliedRequestId.set(id, requestId)
     }
-    // Else: either the chain has already closed (a newer request for this
-    // id settled first and cleared tracking), or this success is older than
-    // one already applied (e.g. three overlapping requests where the
-    // second's success was already used to update the baseline before the
-    // first's late, out-of-order success arrives). Either way this success
-    // is stale and must not resurrect/overwrite the baseline with a
-    // superseded placement.
+    // Else: older than a success already applied — stale, must not
+    // resurrect/overwrite the baseline with a superseded placement.
   }
 
   /** Call when a move PATCH for `id`/`requestId` fails. Returns the
@@ -76,12 +80,14 @@ export class MoveRequestTracker<TPlacement> {
    * superseded by a newer request for the same `id` (a stale rejection that
    * should be ignored). */
   settleFailure(id: string, requestId: number): TPlacement | undefined {
-    if (this.requestIds.get(id) !== requestId) return undefined
-    const fallback = this.baselines.get(id)
-    this.requestIds.delete(id)
-    this.baselines.delete(id)
-    this.lastAppliedRequestId.delete(id)
-    return fallback
+    this.decrementPending(id)
+    if (requestId !== this.issuedRequestId.get(id)) return undefined
+    return this.baselines.get(id)
+  }
+
+  private decrementPending(id: string): void {
+    const remaining = (this.pendingCount.get(id) ?? 0) - 1
+    this.pendingCount.set(id, Math.max(0, remaining))
   }
 }
 
