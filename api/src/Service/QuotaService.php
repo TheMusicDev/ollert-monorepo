@@ -26,6 +26,19 @@ use InvalidArgumentException;
  * `board_id`) — this class only owns the "compare count to the owner's quota
  * column, throw if at/over" part, since that logic is identical across all
  * four quotas even though the counting query differs.
+ *
+ * **Concurrency**: this is a plain check-then-act read — it does not open a
+ * transaction or take a lock, so two concurrent creation requests for the
+ * same owner can both pass the check before either insert commits, letting
+ * the owner end up one (or more) over quota. Acceptable for the MVP (a
+ * single user racing themselves across two tabs, worst case one extra row —
+ * not a security boundary), but callers that want a hard guarantee should
+ * run the count query, this check, and the actual `save()` inside one
+ * transaction, with the count query (or a `SELECT ... FOR UPDATE` read of
+ * the owner row) taking a row lock first so concurrent callers serialize
+ * instead of racing. Not built in here since the transaction boundary is the
+ * caller's (the Section 2 controller action's) to own, not this stateless
+ * helper's.
  */
 class QuotaService
 {
