@@ -120,4 +120,42 @@ class SupabaseJwksProviderTest extends TestCase
             $this->assertNull(Cache::read('supabase_jwks', 'jwks'));
         }
     }
+
+    /**
+     * A response with the right shape (`{"keys": [...]}`) but an
+     * unparseable key set (e.g. empty, or every key using an unsupported
+     * algorithm) fails inside `Firebase\JWT\JWK::parseKeySet()`, not the
+     * provider's own shape check — this must be caught too, or the bad
+     * response sits cached for the full TTL and every request 401s until
+     * it expires, even after the endpoint recovers.
+     *
+     * @return void
+     */
+    public function testUnparseableJwksResponseThrowsAndIsNotCached(): void
+    {
+        $calls = 0;
+        $provider = new SupabaseJwksProvider(function () use (&$calls) {
+            $calls++;
+
+            return ['keys' => []];
+        });
+
+        try {
+            $provider->getKeySet();
+            $this->fail('Expected a RuntimeException.');
+        } catch (RuntimeException) {
+            // expected
+        }
+
+        $this->assertNull(Cache::read('supabase_jwks', 'jwks'));
+
+        // A subsequent call must refetch rather than reuse the poisoned
+        // (now-cleared) cache entry.
+        try {
+            $provider->getKeySet();
+        } catch (RuntimeException) {
+            // still unparseable — only the refetch count matters here.
+        }
+        $this->assertSame(2, $calls);
+    }
 }

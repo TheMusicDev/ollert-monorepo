@@ -261,6 +261,47 @@ class AuthMiddlewareTest extends TestCase
         $this->assertSame(1, $count);
     }
 
+    /**
+     * A soft-deleted local row (Muffin/Trash's `deleted` column) still owns
+     * the unique `supabase_uid` — the default find scopes it out, but a
+     * still-valid Supabase token means the identity is legitimate again, so
+     * the middleware must revive the row rather than collide with a doomed
+     * insert attempt (see `AuthMiddleware::reviveIfTrashed()`).
+     *
+     * @return void
+     */
+    public function testValidTokenForSoftDeletedUserRevivesTheExistingRow(): void
+    {
+        $sub = Text::uuid();
+        $trashed = $this->usersTable()->newEntity([
+            'supabase_uid' => $sub,
+            'email' => 'was-deleted@example.com',
+        ]);
+        $trashed = $this->usersTable()->saveOrFail($trashed);
+        $this->usersTable()->delete($trashed);
+        $this->assertNotNull(
+            $this->usersTable()->find('withTrashed')->where(['id' => $trashed->id])->firstOrFail()->deleted,
+        );
+
+        $token = $this->makeToken([
+            'sub' => $sub,
+            'email' => 'revived@example.com',
+        ]);
+        $middleware = new AuthMiddleware($this->fakeJwksProvider());
+        $handler = $this->recordingHandler();
+
+        $middleware->process($this->makeRequest($token), $handler);
+
+        $identity = $handler->capturedRequest?->getAttribute('identity');
+        $this->assertInstanceOf(User::class, $identity);
+        $this->assertSame($trashed->id, $identity->id);
+        $this->assertNull($identity->deleted);
+        $this->assertSame('revived@example.com', $identity->email);
+
+        $row = $this->usersTable()->find()->where(['supabase_uid' => $sub])->firstOrFail();
+        $this->assertNull($row->deleted);
+    }
+
     public function testMissingAuthorizationHeaderIsUnauthorized(): void
     {
         $middleware = new AuthMiddleware($this->fakeJwksProvider());

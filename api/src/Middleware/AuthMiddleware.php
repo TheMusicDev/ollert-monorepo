@@ -6,6 +6,8 @@ namespace App\Middleware;
 use App\Auth\JwksProviderInterface;
 use App\Auth\SupabaseJwksProvider;
 use App\Model\Entity\User;
+use App\Model\Table\UsersTable;
+use Cake\Database\Exception\QueryException;
 use Cake\Http\Exception\UnauthorizedException;
 use Cake\ORM\Locator\LocatorAwareTrait;
 use Firebase\JWT\JWT;
@@ -179,24 +181,92 @@ class AuthMiddleware implements MiddlewareInterface
      * planning/architecture.md#auth-flow, step 4 — JIT provisioning, no
      * separate signup endpoint).
      *
+     * Two edge cases beyond the happy path, both because `supabase_uid` is
+     * unique across *all* rows (trashed or not — see the migration) rather
+     * than just active ones:
+     * - A soft-deleted row (`Muffin/Trash`, scoped out of the default find)
+     *   still owns the `supabase_uid`. A still-valid Supabase token means
+     *   the identity is legitimate again, so it's revived rather than
+     *   left to collide with a doomed insert attempt.
+     * - Two first-ever requests for the same `sub` can race: both see no
+     *   row and both attempt to create one. The loser's insert fails on
+     *   the unique index (`Cake\Database\Exception\QueryException`); rather
+     *   than surface that as a 500, re-read the row the winner just
+     *   created.
+     *
      * @param \stdClass $payload The decoded, claim-validated JWT payload.
      * @return \App\Model\Entity\User
      */
     private function findOrCreateUser(stdClass $payload): User
     {
-        /** @var \App\Model\Table\UsersTable $usersTable */
-        $usersTable = $this->fetchTable('Users');
+        $usersTable = $this->fetchUsersTable();
+        $supabaseUid = $payload->sub;
 
-        /** @var \App\Model\Entity\User $user */
-        $user = $usersTable->findOrCreate(
-            ['supabase_uid' => $payload->sub],
-            function (User $entity) use ($payload): User {
-                $entity->email = $payload->email;
+        $existing = $this->findBySupabaseUid($usersTable, $supabaseUid);
+        if ($existing !== null) {
+            return $this->reviveIfTrashed($usersTable, $existing, $payload);
+        }
 
-                return $entity;
-            },
-        );
+        try {
+            $user = $usersTable->newEntity([
+                'supabase_uid' => $supabaseUid,
+                'email' => $payload->email,
+            ]);
 
-        return $user;
+            return $usersTable->saveOrFail($user);
+        } catch (QueryException $e) {
+            // Lost the create race to a concurrent first request for the
+            // same identity — use the row it created instead of failing.
+            $existing = $this->findBySupabaseUid($usersTable, $supabaseUid);
+            if ($existing === null) {
+                throw $e;
+            }
+
+            return $this->reviveIfTrashed($usersTable, $existing, $payload);
+        }
+    }
+
+    /**
+     * @return \App\Model\Table\UsersTable
+     */
+    private function fetchUsersTable(): UsersTable
+    {
+        /** @var \App\Model\Table\UsersTable */
+        return $this->fetchTable('Users');
+    }
+
+    /**
+     * Looks up a `users` row by `supabase_uid` regardless of trashed status
+     * — the unique index covers every row, so a match here (trashed or not)
+     * is always the one this `sub` belongs to.
+     *
+     * @param \App\Model\Table\UsersTable $usersTable The table.
+     * @param string $supabaseUid The `sub` claim.
+     * @return \App\Model\Entity\User|null
+     */
+    private function findBySupabaseUid(UsersTable $usersTable, string $supabaseUid): ?User
+    {
+        /** @var \App\Model\Entity\User|null */
+        return $usersTable->find('withTrashed')
+            ->where(['supabase_uid' => $supabaseUid])
+            ->first();
+    }
+
+    /**
+     * @param \App\Model\Table\UsersTable $usersTable The table.
+     * @param \App\Model\Entity\User $user The row matching this token's `sub`.
+     * @param \stdClass $payload The decoded, claim-validated JWT payload.
+     * @return \App\Model\Entity\User
+     */
+    private function reviveIfTrashed(UsersTable $usersTable, User $user, stdClass $payload): User
+    {
+        if ($user->deleted === null) {
+            return $user;
+        }
+
+        $user->deleted = null;
+        $user->email = $payload->email;
+
+        return $usersTable->saveOrFail($user);
     }
 }

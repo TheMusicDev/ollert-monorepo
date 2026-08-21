@@ -7,6 +7,7 @@ use Cake\Cache\Cache;
 use Cake\Http\Client;
 use Firebase\JWT\JWK;
 use RuntimeException;
+use Throwable;
 
 /**
  * Fetches Supabase's JWKS (JSON Web Key Set) from `SUPABASE_JWKS_URL` and
@@ -47,14 +48,27 @@ class SupabaseJwksProvider implements JwksProviderInterface
     {
         $jwks = Cache::remember(self::CACHE_KEY, $this->fetcher, self::CACHE_CONFIG);
 
-        if (!is_array($jwks) || !isset($jwks['keys'])) {
-            // Never cache a malformed shape under a value that would make
-            // every subsequent request fail until the TTL expires.
-            Cache::delete(self::CACHE_KEY, self::CACHE_CONFIG);
-            throw new RuntimeException('Malformed Supabase JWKS response: missing "keys".');
-        }
+        // Parsing (not just the raw HTTP fetch) happens *before* deciding
+        // whether the cached value is usable: `JWK::parseKeySet()` can
+        // itself throw on a structurally-plausible-but-bad response (e.g.
+        // an empty or all-unsupported-algorithm `keys` array). If that
+        // parse failure isn't caught here too, the bad response stays
+        // cached for the full TTL and every request 401s until it expires,
+        // even after Supabase's endpoint recovers.
+        try {
+            if (!is_array($jwks) || !isset($jwks['keys'])) {
+                throw new RuntimeException('Malformed Supabase JWKS response: missing "keys".');
+            }
 
-        return JWK::parseKeySet($jwks);
+            return JWK::parseKeySet($jwks);
+        } catch (Throwable $e) {
+            Cache::delete(self::CACHE_KEY, self::CACHE_CONFIG);
+            throw $e instanceof RuntimeException ? $e : new RuntimeException(
+                'Failed to parse Supabase JWKS response: ' . $e->getMessage(),
+                0,
+                $e,
+            );
+        }
     }
 
     /**
