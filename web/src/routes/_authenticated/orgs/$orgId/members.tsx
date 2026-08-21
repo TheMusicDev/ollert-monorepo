@@ -1,11 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router'
 
+import { OrgMembersPage } from '@/components/org-members/OrgMembersPage'
+
 export const Route = createFileRoute('/_authenticated/orgs/$orgId/members')({
-  component: OrgMembersPage,
+  component: RouteComponent,
 })
 
-function OrgMembersPage() {
+function RouteComponent() {
   const { orgId } = Route.useParams()
-  // Stub — paginated members table + add-by-email form wired up in feat/web-org-members.
-  return <div>Org {orgId} members</div>
+  return <OrgMembersPage orgId={orgId} />
 }
