@@ -10,8 +10,8 @@ if (!API_BASE_URL) {
 
 /**
  * Shape of `error.fields` on a 422 validation error — field name -> messages.
- * `Partial` because only the fields that actually failed validation are
- * present; looking up an arbitrary field name can yield `undefined`.
+ * Partial because a given error only ever populates the field(s) that
+ * actually failed validation, not every possible field name.
  */
 export type ApiErrorFields = Partial<Record<string, string[]>>
 

@@ -2,10 +2,10 @@ import '@testing-library/jest-dom/vitest'
 import { cleanup } from '@testing-library/react'
 import { afterEach } from 'vitest'
 
-// `test.globals` is off (see vitest.config.ts), so Testing Library's
-// auto-cleanup — which relies on detecting a global `afterEach` — never
-// registers itself. Without this, DOM from one test in a multi-test file
-// leaks into the next, breaking any query that expects a single match.
+// vitest.config.ts runs with `globals: false`, so Testing Library's
+// auto-cleanup (which detects a global `afterEach`) never registers itself —
+// without this, DOM from one test's render() leaks into the next test in the
+// same file. Wire it up explicitly instead.
 afterEach(() => {
   cleanup()
 })
