@@ -79,18 +79,55 @@ return function (RouteBuilder $routes): void {
     });
 
     /*
-     * If you need a different set of middleware or none at all,
-     * open new scope and define routes there.
+     * JSON REST API, per planning/api-contract.md#endpoints. Auth (all routes
+     * except /api/health require a Supabase Bearer JWT) is applied by
+     * `feat/api-auth-middleware`'s middleware, not here — this scope only
+     * wires URLs to controllers/actions.
      *
-     * ```
-     * $routes->scope('/api', function (RouteBuilder $builder): void {
-     *     // No $builder->applyMiddleware() here.
-     *
-     *     // Parse specified extensions from URLs
-     *     // $builder->setExtensions(['json', 'xml']);
-     *
-     *     // Connect API actions here.
-     * });
-     * ```
+     * Controllers are referenced by name only; the stub controller *files*
+     * (`feat/api-stubs`) and their real implementations (Section 2 branches)
+     * land separately — CakePHP resolves controller classes lazily per
+     * request, so this doesn't require those files to exist yet.
      */
+    $routes->scope('/api', function (RouteBuilder $builder): void {
+        $builder->get('/health', ['controller' => 'Health', 'action' => 'index']);
+
+        // Organizations
+        $builder->get('/orgs', ['controller' => 'Organizations', 'action' => 'index']);
+        $builder->post('/orgs', ['controller' => 'Organizations', 'action' => 'add']);
+        $builder->get('/orgs/{id}', ['controller' => 'Organizations', 'action' => 'view'])->setPass(['id']);
+        $builder->patch('/orgs/{id}', ['controller' => 'Organizations', 'action' => 'edit'])->setPass(['id']);
+        $builder->delete('/orgs/{id}', ['controller' => 'Organizations', 'action' => 'delete'])->setPass(['id']);
+
+        // Org Members
+        $builder->get('/orgs/{id}/members', ['controller' => 'OrgMembers', 'action' => 'index'])
+            ->setPass(['id']);
+        $builder->post('/orgs/{id}/members', ['controller' => 'OrgMembers', 'action' => 'add'])
+            ->setPass(['id']);
+        $builder->delete(
+            '/orgs/{id}/members/{userId}',
+            ['controller' => 'OrgMembers', 'action' => 'delete'],
+        )->setPass(['id', 'userId']);
+
+        // Boards
+        $builder->get('/orgs/{id}/boards', ['controller' => 'Boards', 'action' => 'index'])
+            ->setPass(['id']);
+        $builder->post('/orgs/{id}/boards', ['controller' => 'Boards', 'action' => 'add'])
+            ->setPass(['id']);
+        $builder->get('/boards/{id}', ['controller' => 'Boards', 'action' => 'view'])->setPass(['id']);
+        $builder->patch('/boards/{id}', ['controller' => 'Boards', 'action' => 'edit'])->setPass(['id']);
+        $builder->delete('/boards/{id}', ['controller' => 'Boards', 'action' => 'delete'])->setPass(['id']);
+
+        // Lists
+        $builder->post('/boards/{id}/lists', ['controller' => 'Lists', 'action' => 'add'])
+            ->setPass(['id']);
+        $builder->patch('/lists/{id}', ['controller' => 'Lists', 'action' => 'edit'])->setPass(['id']);
+        $builder->delete('/lists/{id}', ['controller' => 'Lists', 'action' => 'delete'])->setPass(['id']);
+
+        // Cards
+        $builder->post('/lists/{id}/cards', ['controller' => 'Cards', 'action' => 'add'])
+            ->setPass(['id']);
+        $builder->patch('/cards/{id}', ['controller' => 'Cards', 'action' => 'edit'])->setPass(['id']);
+        $builder->delete('/cards/{id}', ['controller' => 'Cards', 'action' => 'delete'])->setPass(['id']);
+    });
 };

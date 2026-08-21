@@ -46,7 +46,7 @@ Local shadow of the Supabase-authenticated identity. Created just-in-time on fir
 | name | varchar | |
 
 ## org_members
-Join table. Owner is implicitly a member too (or: owner row also present here for uniform membership checks — pick one convention during implementation). Membership here is what grants access to *all* boards under the org.
+Join table. The owner is always implicitly a member (`App\Service\OrgAuthorizationService::isOrgMember()` treats `organizations.owner_id` as membership directly), whether or not an explicit owner row also exists in this table — `feat/api-organizations` may insert one on org creation for uniform listing/removal UX, but authorization checks don't depend on it either way (see [log.md](log.md)). Membership here is what grants access to *all* boards under the org.
 
 | field | type | notes |
 |---|---|---|
