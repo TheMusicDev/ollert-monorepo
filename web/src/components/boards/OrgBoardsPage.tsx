@@ -41,23 +41,39 @@ export function OrgBoardsPage({ orgId }: { orgId: string }) {
   const [renameTarget, setRenameTarget] = useState<Board | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Board | null>(null)
 
-  // Reset pagination when the org changes so a page retained from a
-  // previous org doesn't get requested against the new one. Adjusting
-  // state during render (rather than in an effect keyed on orgId) means
-  // the reset lands before loadBoards' effect fires, so we never issue a
-  // wasted fetch for the old page against the new org.
-  const [prevOrgId, setPrevOrgId] = useState(orgId)
-  if (orgId !== prevOrgId) {
-    setPrevOrgId(orgId)
-    setPage(1)
-  }
-
   // Request generation counters guard against out-of-order responses: if a
   // newer request (from an orgId/page change or a manual retry) is issued
   // before an older one resolves, the older response is discarded instead
   // of overwriting fresher state.
   const orgRequestRef = useRef(0)
   const boardsRequestRef = useRef(0)
+
+  // Reset pagination when the org changes so a page retained from a
+  // previous org doesn't get requested against the new one. Adjusting
+  // state during render (rather than in an effect keyed on orgId) means
+  // the reset lands before loadBoards' effect fires, so we never issue a
+  // wasted fetch for the old page against the new org. Bumping the
+  // generations here too — rather than only inside loadOrg/loadBoards —
+  // closes a narrow race: without this, a request for the previous org
+  // that resolves after this render commits but before the replacement
+  // effect runs would still carry the "current" generation number and
+  // pass the staleness check.
+  const [prevOrgId, setPrevOrgId] = useState(orgId)
+  if (orgId !== prevOrgId) {
+    setPrevOrgId(orgId)
+    setPage(1)
+    orgRequestRef.current++
+    boardsRequestRef.current++
+  }
+
+  // Same reasoning for page changes on their own (pagination clicks): bump
+  // the boards generation synchronously so an in-flight request for the
+  // previous page can't win a race against the replacement effect.
+  const [prevPage, setPrevPage] = useState(page)
+  if (page !== prevPage) {
+    setPrevPage(page)
+    boardsRequestRef.current++
+  }
 
   const loadOrg = useCallback(() => {
     const requestId = ++orgRequestRef.current
