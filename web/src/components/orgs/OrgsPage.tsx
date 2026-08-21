@@ -65,6 +65,10 @@ export function OrgsPage() {
   }
 
   const handleRenamed = (org: Organization) => {
+    // Invalidate any in-flight load — otherwise a slower, already-issued
+    // request (e.g. from pagination or a retry) can resolve after this
+    // optimistic update and overwrite the just-renamed row with stale data.
+    latestRequestId.current += 1
     setOrgs((current) => current.map((o) => (o.id === org.id ? org : o)))
     setRenameTarget(null)
   }
