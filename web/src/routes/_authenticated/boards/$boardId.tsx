@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import {
   DndContext,
@@ -51,6 +51,11 @@ function BoardDetailPage() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [selectedCard, setSelectedCard] = useState<CardEntity | null>(null)
+
+  // Tracks the most recent list-reorder request per list id, so a stale
+  // PATCH rejection (from an earlier reorder of the same list) can tell it's
+  // no longer the latest one and skip reverting — see handleListReorder.
+  const listReorderRequestRef = useRef(new Map<string, number>())
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -171,11 +176,24 @@ function BoardDetailPage() {
     if (!activeList) return
     const originalPosition = activeList.position
 
+    // Claim this as the latest in-flight reorder request for this list.
+    const requestId =
+      (listReorderRequestRef.current.get(activeListId) ?? 0) + 1
+    listReorderRequestRef.current.set(activeListId, requestId)
+
     setLists((current) => {
       const result = moveList(current, activeListId, destListId)
       if (!result) return current
 
       updateList(activeListId, { position: result.position }).catch(() => {
+        // If a newer reorder of this same list has started since this PATCH
+        // was fired, this rejection is stale: that newer request now owns
+        // the list's optimistic state (and may already have committed), so
+        // reverting to this request's older position would discard it.
+        if (listReorderRequestRef.current.get(activeListId) !== requestId) {
+          return
+        }
+
         // Revert just this list's position rather than restoring a
         // pre-move snapshot, so a second reorder that committed while this
         // request was pending isn't discarded.
