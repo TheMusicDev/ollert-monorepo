@@ -77,15 +77,17 @@ not parallel like Section 2, since later subsections depend on earlier ones: B n
 - [ ] Org-membership authorization helper (e.g. a component or policy): `isOrgMember($userId, $orgId)`,
   `isOrgOwner($userId, $orgId)`. Every Section 2 controller needs this for 403 checks — build it once here, not four
   times.
-- [ ] **Expose ownership to the frontend, not just enforce it server-side.** No org resource currently returns anything
-  the FE can use to know "am I this org's owner" — there's no `/me` endpoint and the FE only ever holds the Supabase
-  identity, not the local `users.id` behind `owner_id`. Three FE Section 2 branches (`feat/web-orgs`,
+- [ ] **Design ownership exposure for the frontend now; ship it in Section 2.** No org resource currently returns
+  anything the FE can use to know "am I this org's owner" — there's no `/me` endpoint and the FE only ever holds the
+  Supabase identity, not the local `users.id` behind `owner_id`. Three FE Section 2 branches (`feat/web-orgs`,
   `feat/web-org-members`, `feat/web-boards`) already shipped three different client-side guesses for this because the
-  gap was discovered independently on each. Resolve it here: have `OrganizationsController`'s `index`/`view` responses
-  include a server-computed `is_owner: boolean` (using the helper above, computed relative to the requesting user), and
-  update [api-contract.md](planning/api-contract.md#endpoints) to document the field on the org resource shape. This
-  needs to land before or alongside `feat/api-organizations` (Section 2) so the three existing FE branches can be
-  reconciled against one real shape instead of their three guesses.
+  gap was discovered independently on each. `OrganizationsController` doesn't exist until G (stub) and isn't
+  implemented until Section 2 (`feat/api-organizations`), so F can't emit the field itself — F's job is to settle the
+  contract so Section 2 implements against a decided shape instead of inventing one: (a) make sure the org-membership
+  helper above can compute ownership per-request (it already needs to, for `isOrgOwner`), and (b) document a
+  server-computed `is_owner: boolean` on the org resource in [api-contract.md](planning/api-contract.md#endpoints)
+  now. The `feat/api-organizations` branch (Section 2) is responsible for actually returning it from `index`/`view` —
+  that requirement is called out on that branch below.
 - [ ] Quota-check helper: generic "count existing rows for X, compare to owner's `max_Y` column, throw 422
   `quota_exceeded` if at/over" — parameterized so it covers all four quotas (`max_orgs`, `max_boards_per_org`,
   `max_lists_per_board`, `max_cards_per_board`).
@@ -117,8 +119,9 @@ Once G merges and Section 2 is about to be delegated in parallel, confirm all of
 to an issue that cost multiple review rounds on the frontend's equivalent parallel round (`fe-tasks.md`'s own lessons
 section has the full detail):
 
-- [ ] F's `is_owner` field actually shipped and documented in `api-contract.md` — not left for Section 2 controllers to
-  each decide independently.
+- [ ] F's `is_owner` field is documented in `api-contract.md` and the org-membership helper can compute it — the field
+  itself lands in `feat/api-organizations` (see that branch's own checklist below), but the *contract* must be settled
+  before Section 2 starts so it isn't left for Section 2 controllers to each decide independently.
 - [ ] G's PHPUnit bootstrap has at least one real fixture-backed integration test passing, not just config.
 - [ ] C's error envelope's `fields` behavior (only present-when-failed keys) has a test asserting it, since Section 2
   FE work already assumes this shape.
@@ -136,7 +139,10 @@ fixtures + controller integration tests) for its own actions.
 ### Branch: `feat/api-organizations` — Organizations + Org Members
 
 - `OrganizationsController`: `index` (paginated, orgs owned or member of), `add` (422 on `max_orgs`), `view` (includes
-  boards), `edit` (owner or member), `delete` (owner only, soft delete).
+  boards), `edit` (owner or member), `delete` (owner only, soft delete). `index` and `view` must include the
+  server-computed `is_owner: boolean` documented in Section 1F's `api-contract.md` update, using the org-membership
+  helper — this is what the three already-merged FE branches (`feat/web-orgs`, `feat/web-org-members`,
+  `feat/web-boards`) need reconciled against once this ships.
 - `OrgMembersController`: `index` (paginated), `add` (by email, must be an existing user — 404/422 if not found),
   `delete` (owner only, or self-removal).
 
