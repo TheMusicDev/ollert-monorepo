@@ -1,7 +1,8 @@
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { render, screen, within } from '@/test/test-utils'
+import { screen, within } from '@/test/test-utils'
+import { renderWithRouter } from '@/test/router-test-utils'
 import { ApiError } from '@/lib/api-client'
 import { createOrg, deleteOrg, listOrgs, renameOrg } from '@/lib/orgs-api'
 import type { Organization } from '@/lib/orgs-api'
@@ -41,9 +42,14 @@ describe('OrgsPage', () => {
       meta: { page: 1, limit: 20, total: 0, totalPages: 0 },
     })
 
-    render(<OrgsPage />)
+    renderWithRouter(<OrgsPage />)
 
-    expect(screen.getByText('Loading organizations…')).toBeInTheDocument()
+    // Only assert this loading text appeared at some point, not that it's
+    // still mounted right now — chaining `.toBeInTheDocument()` after the
+    // `await` is a race once the router adds a layer of async resolution
+    // in front of the mount: `listOrgs`'s already-resolved mock can flip
+    // the component to its loaded state before this synchronous check runs.
+    await screen.findByText('Loading organizations…')
 
     expect(
       await screen.findByText('Create your first organization'),
@@ -59,7 +65,7 @@ describe('OrgsPage', () => {
       meta: { page: 1, limit: 20, total: 2, totalPages: 1 },
     })
 
-    render(<OrgsPage />)
+    renderWithRouter(<OrgsPage />)
 
     expect(await screen.findByText('Acme')).toBeInTheDocument()
     expect(screen.getByText('Globex')).toBeInTheDocument()
@@ -75,7 +81,7 @@ describe('OrgsPage', () => {
         meta: { page: 1, limit: 20, total: 1, totalPages: 1 },
       })
 
-    render(<OrgsPage />)
+    renderWithRouter(<OrgsPage />)
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Network down')
 
@@ -97,7 +103,7 @@ describe('OrgsPage', () => {
       })
     vi.mocked(createOrg).mockResolvedValue(makeOrg({ name: 'Fresh Org' }))
 
-    render(<OrgsPage />)
+    renderWithRouter(<OrgsPage />)
 
     await user.click(
       await screen.findByRole('button', { name: 'New organization' }),
@@ -117,7 +123,7 @@ describe('OrgsPage', () => {
     })
     vi.mocked(renameOrg).mockResolvedValue(makeOrg({ name: 'Acme Corp' }))
 
-    render(<OrgsPage />)
+    renderWithRouter(<OrgsPage />)
 
     await user.click(await screen.findByRole('button', { name: 'Rename' }))
     const input = screen.getByLabelText('Name')
@@ -142,7 +148,7 @@ describe('OrgsPage', () => {
       })
     vi.mocked(deleteOrg).mockResolvedValue(undefined)
 
-    render(<OrgsPage />)
+    renderWithRouter(<OrgsPage />)
 
     await user.click(await screen.findByRole('button', { name: 'Delete' }))
     const dialog = screen.getByRole('alertdialog')

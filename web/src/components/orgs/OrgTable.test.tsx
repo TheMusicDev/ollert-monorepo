@@ -1,7 +1,8 @@
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
-import { render, screen } from '@/test/test-utils'
+import { screen } from '@/test/test-utils'
+import { renderWithRouter } from '@/test/router-test-utils'
 import type { Organization } from '@/lib/orgs-api'
 
 import { OrgTable } from './OrgTable'
@@ -19,8 +20,8 @@ function makeOrg(overrides: Partial<Organization> = {}): Organization {
 }
 
 describe('OrgTable', () => {
-  it('renders a row per org', () => {
-    render(
+  it('renders a row per org', async () => {
+    renderWithRouter(
       <OrgTable
         orgs={[
           makeOrg({ id: '1', name: 'Acme' }),
@@ -31,12 +32,27 @@ describe('OrgTable', () => {
       />,
     )
 
-    expect(screen.getByText('Acme')).toBeInTheDocument()
+    expect(await screen.findByText('Acme')).toBeInTheDocument()
     expect(screen.getByText('Globex')).toBeInTheDocument()
   })
 
-  it('shows an Owner badge and Delete action when is_owner is true', () => {
-    render(
+  it('links each org name to its detail page', async () => {
+    renderWithRouter(
+      <OrgTable
+        orgs={[makeOrg({ id: 'org-42', name: 'Acme' })]}
+        onRename={() => {}}
+        onDelete={() => {}}
+      />,
+    )
+
+    expect(await screen.findByRole('link', { name: 'Acme' })).toHaveAttribute(
+      'href',
+      '/orgs/org-42',
+    )
+  })
+
+  it('shows an Owner badge and Delete action when is_owner is true', async () => {
+    renderWithRouter(
       <OrgTable
         orgs={[makeOrg({ is_owner: true })]}
         onRename={() => {}}
@@ -44,12 +60,12 @@ describe('OrgTable', () => {
       />,
     )
 
-    expect(screen.getByText('Owner')).toBeInTheDocument()
+    expect(await screen.findByText('Owner')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
   })
 
-  it('hides the Delete action when is_owner is explicitly false', () => {
-    render(
+  it('hides the Delete action when is_owner is explicitly false', async () => {
+    renderWithRouter(
       <OrgTable
         orgs={[makeOrg({ is_owner: false })]}
         onRename={() => {}}
@@ -57,6 +73,7 @@ describe('OrgTable', () => {
       />,
     )
 
+    await screen.findByRole('link', { name: 'Acme' })
     expect(screen.queryByText('Owner')).not.toBeInTheDocument()
     expect(
       screen.queryByRole('button', { name: 'Delete' }),
@@ -68,9 +85,11 @@ describe('OrgTable', () => {
     const onRename = vi.fn()
     const onDelete = vi.fn()
     const org = makeOrg({ is_owner: true })
-    render(<OrgTable orgs={[org]} onRename={onRename} onDelete={onDelete} />)
+    renderWithRouter(
+      <OrgTable orgs={[org]} onRename={onRename} onDelete={onDelete} />,
+    )
 
-    await user.click(screen.getByRole('button', { name: 'Rename' }))
+    await user.click(await screen.findByRole('button', { name: 'Rename' }))
     await user.click(screen.getByRole('button', { name: 'Delete' }))
 
     expect(onRename).toHaveBeenCalledWith(org)

@@ -11,10 +11,10 @@ import { render } from './test-utils'
 
 /**
  * Renders `ui` at `/` inside a minimal in-memory router, for components
- * that use `<Link>`/`useNavigate` (e.g. links to `/orgs/$orgId/members` or
- * `/boards/$boardId`) but don't need the app's full route tree to be
- * exercised. Registers those two target routes with stub components so
- * `<Link>` resolves real hrefs.
+ * that use `<Link>`/`useNavigate` (e.g. links to `/orgs/$orgId`,
+ * `/orgs/$orgId/members`, or `/boards/$boardId`) but don't need the app's
+ * full route tree to be exercised. Registers those target routes with stub
+ * components so `<Link>` resolves real hrefs.
  */
 export function renderWithRouter(ui: ReactElement) {
   const rootRoute = createRootRoute()
@@ -22,6 +22,11 @@ export function renderWithRouter(ui: ReactElement) {
     getParentRoute: () => rootRoute,
     path: '/',
     component: () => ui,
+  })
+  const orgDetailRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/orgs/$orgId',
+    component: () => <div>Org detail stub</div>,
   })
   const orgMembersRoute = createRoute({
     getParentRoute: () => rootRoute,
@@ -35,6 +40,7 @@ export function renderWithRouter(ui: ReactElement) {
   })
   const routeTree = rootRoute.addChildren([
     indexRoute,
+    orgDetailRoute,
     orgMembersRoute,
     boardDetailRoute,
   ])
