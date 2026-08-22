@@ -1,59 +1,23 @@
 import { describe, expect, it } from 'vitest'
 
-import type { OrgMember, OrgSummary } from './org-members'
-import { canRemoveMember, findCurrentMember, isOrgOwner } from './org-members'
+import type { OrgMember } from './org-members'
+import { canRemoveMember } from './org-members'
 
 const owner: OrgMember = {
   id: 'm1',
-  userId: 'u-owner',
-  email: 'owner@example.com',
-  displayName: 'Owner',
+  org_id: 'org-1',
+  user_id: 'u-owner',
+  user: { id: 'u-owner', email: 'owner@example.com', display_name: 'Owner' },
   created: '2026-01-01',
 }
 
 const member: OrgMember = {
   id: 'm2',
-  userId: 'u-member',
-  email: 'member@example.com',
-  displayName: null,
+  org_id: 'org-1',
+  user_id: 'u-member',
+  user: { id: 'u-member', email: 'member@example.com', display_name: null },
   created: '2026-01-02',
 }
-
-const org: OrgSummary = { id: 'org-1', ownerId: 'u-owner', name: 'Acme' }
-
-describe('findCurrentMember', () => {
-  it('matches a member by case-insensitive email', () => {
-    expect(findCurrentMember([owner, member], 'MEMBER@example.com')).toBe(
-      member,
-    )
-  })
-
-  it('returns undefined when the email is not among the members', () => {
-    expect(findCurrentMember([owner, member], 'nobody@example.com')).toBe(
-      undefined,
-    )
-  })
-
-  it('returns undefined when no email is given', () => {
-    expect(findCurrentMember([owner, member], undefined)).toBe(undefined)
-    expect(findCurrentMember([owner, member], null)).toBe(undefined)
-  })
-})
-
-describe('isOrgOwner', () => {
-  it('is true when the current member is the org owner', () => {
-    expect(isOrgOwner(org, owner)).toBe(true)
-  })
-
-  it('is false when the current member is not the org owner', () => {
-    expect(isOrgOwner(org, member)).toBe(false)
-  })
-
-  it('is false when the org or current member is missing', () => {
-    expect(isOrgOwner(null, owner)).toBe(false)
-    expect(isOrgOwner(org, undefined)).toBe(false)
-  })
-})
 
 describe('canRemoveMember', () => {
   it('lets an owner remove anyone', () => {

@@ -11,6 +11,7 @@ function makeOrg(overrides: Partial<Organization> = {}): Organization {
     id: '1',
     name: 'Acme',
     owner_id: 'owner-1',
+    is_owner: true,
     created: '2026-01-01T00:00:00Z',
     modified: '2026-01-01T00:00:00Z',
     ...overrides,
@@ -60,18 +61,6 @@ describe('OrgTable', () => {
     expect(
       screen.queryByRole('button', { name: 'Delete' }),
     ).not.toBeInTheDocument()
-  })
-
-  it('shows the Delete action when is_owner is unknown (undefined)', () => {
-    render(
-      <OrgTable
-        orgs={[makeOrg({ is_owner: undefined })]}
-        onRename={() => {}}
-        onDelete={() => {}}
-      />,
-    )
-
-    expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
   })
 
   it('fires onRename/onDelete with the clicked org', async () => {

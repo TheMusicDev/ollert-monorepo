@@ -8,17 +8,17 @@ import { MembersTable } from './MembersTable'
 
 const owner: OrgMember = {
   id: 'm1',
-  userId: 'u-owner',
-  email: 'owner@example.com',
-  displayName: 'Owner',
+  org_id: 'org-1',
+  user_id: 'u-owner',
+  user: { id: 'u-owner', email: 'owner@example.com', display_name: 'Owner' },
   created: '2026-01-01',
 }
 
 const member: OrgMember = {
   id: 'm2',
-  userId: 'u-member',
-  email: 'member@example.com',
-  displayName: null,
+  org_id: 'org-1',
+  user_id: 'u-member',
+  user: { id: 'u-member', email: 'member@example.com', display_name: null },
   created: '2026-01-02',
 }
 

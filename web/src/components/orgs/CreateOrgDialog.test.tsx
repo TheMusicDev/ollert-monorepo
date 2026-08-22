@@ -34,6 +34,7 @@ describe('CreateOrgDialog', () => {
       id: '1',
       name: 'Acme',
       owner_id: 'u1',
+      is_owner: true,
       created: '2026-01-01',
       modified: '2026-01-01',
     }

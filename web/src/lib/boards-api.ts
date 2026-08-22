@@ -3,24 +3,15 @@ import type { PaginatedResponse } from './api-client'
 
 /**
  * Org resource as returned by `GET /api/orgs/:id`. `owner_id` per
- * planning/data-model.md#organizations.
- *
- * `is_owner` is NOT documented in planning/api-contract.md — the org
- * resource shape there only lists DB columns, and the frontend has no way
- * to compare `owner_id` (a local CakePHP `users.id`) against the session it
- * holds, which only carries the Supabase auth uid (`users.supabase_uid`).
- * There's no "current user" endpoint or JWT-embedded local id to bridge the
- * two. This assumes the backend adds a server-computed `is_owner` flag to
- * the org resource (the same check it already runs to 403 a non-owner's
- * `POST /boards`). Flagged as an open item for whoever builds
- * `GET /api/orgs/:id` — if the field is absent, the UI below fails safe by
- * treating the current user as a non-owner (create-board control disabled).
+ * planning/data-model.md#organizations; `is_owner` is server-computed and
+ * always present — `OrganizationsController::serializeOrg()` sets it on
+ * every returned org (planning/api-contract.md#organizations).
  */
 export interface Organization {
   id: string
   owner_id: string
   name: string
-  is_owner?: boolean
+  is_owner: boolean
 }
 
 /** Board resource per planning/data-model.md#boards. */

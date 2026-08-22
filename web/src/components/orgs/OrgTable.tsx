@@ -45,7 +45,7 @@ export function OrgTable({ orgs, onRename, onDelete }: OrgTableProps) {
                 >
                   Rename
                 </button>
-                {org.is_owner !== false && (
+                {org.is_owner && (
                   <button
                     type="button"
                     onClick={() => onDelete(org)}

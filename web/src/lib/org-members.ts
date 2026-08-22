@@ -3,27 +3,37 @@ import type { PaginatedResponse } from '@/lib/api-client'
 
 /**
  * Org detail, scoped to what the members page needs (name for the heading,
- * `ownerId` to gate member removal). See
- * planning/api-contract.md#organizations.
+ * `is_owner` to gate member removal). Confirmed against
+ * `OrganizationsController::serializeOrg()`/`view()`: the org resource is
+ * `$org->toArray()` (raw entity — snake_case, matching the underlying
+ * `organizations` table, see planning/data-model.md#organizations) plus the
+ * server-computed `is_owner` boolean (planning/api-contract.md#organizations).
+ * Only the pagination `meta` envelope uses camelCase (`totalPages`, see
+ * planning/api-contract.md#pagination) — resource bodies don't.
  */
 export interface OrgSummary {
   id: string
-  ownerId: string
   name: string
+  is_owner: boolean
 }
 
 /**
- * A row from `GET /api/orgs/:id/members`. Field names assume the API's JSON
- * responses use camelCase throughout — the documented pagination `meta`
- * envelope uses `totalPages`, not `total_pages` (see
- * planning/api-contract.md#pagination) — even though the underlying MySQL
- * columns are snake_case (see planning/data-model.md#org_members).
+ * A row from `GET /api/orgs/:id/members`. Confirmed against
+ * `OrgMembersController`: `$member->toArray()` on the `OrgMember` entity —
+ * snake_case (`org_id`, `user_id`, matching planning/data-model.md#org_members)
+ * — with the target user's data nested under `user` per
+ * `OrgMembersTable`'s `belongsTo('Users')` association, not flattened onto
+ * the member row.
  */
 export interface OrgMember {
   id: string
-  userId: string
-  email: string
-  displayName: string | null
+  org_id: string
+  user_id: string
+  user: {
+    id: string
+    email: string
+    display_name: string | null
+  }
   created: string
 }
 
@@ -53,42 +63,11 @@ export function removeOrgMember(orgId: string, userId: string): Promise<void> {
 }
 
 /**
- * Finds the current signed-in user's own row within a (possibly paginated)
- * page of members, matched by email. There's no `/users/me` endpoint mapping
- * the Supabase session to the API's local `users.id`, so email — known
- * client-side from the Supabase session — is the only stable link available.
- *
- * Caveat: if the current user isn't present on the currently loaded page,
- * this returns `undefined` rather than fetching every page to find them —
- * see `isOrgOwner`.
- */
-export function findCurrentMember(
-  members: OrgMember[],
-  email: string | null | undefined,
-): OrgMember | undefined {
-  if (!email) return undefined
-  const needle = email.toLowerCase()
-  return members.find((member) => member.email.toLowerCase() === needle)
-}
-
-/**
- * True when the current user's own membership row — if found on the loaded
- * page, see `findCurrentMember` — belongs to the org's owner. Data model
- * notes the owner-as-explicit-member convention is still an open backend
- * decision (planning/data-model.md#org_members); this only ever grants
- * owner-only UI (like removing *other* members) once we've positively
- * matched the current user's row against `org.ownerId`, so it fails closed
- * (under-grants rather than over-grants) if that row isn't loaded yet.
- */
-export function isOrgOwner(
-  org: OrgSummary | null,
-  currentMember: OrgMember | undefined,
-): boolean {
-  return !!org && !!currentMember && currentMember.userId === org.ownerId
-}
-
-/**
  * Owner-only, or self-removal. See planning/api-contract.md#org-members.
+ * `isOwner` comes straight from the org resource's server-computed
+ * `is_owner` field (`OrgSummary.is_owner`) — no client-side derivation
+ * needed, unlike the member-list email-matching this used to do before
+ * `feat/api-organizations` shipped that field for real.
  */
 export function canRemoveMember(
   member: OrgMember,
@@ -97,5 +76,5 @@ export function canRemoveMember(
 ): boolean {
   if (isOwner) return true
   if (!currentUserEmail) return false
-  return member.email.toLowerCase() === currentUserEmail.toLowerCase()
+  return member.user.email.toLowerCase() === currentUserEmail.toLowerCase()
 }
