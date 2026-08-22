@@ -20,13 +20,25 @@ jobs:
     runs-on: ubuntu-latest
     name: Run PR-Agent on every pull request, respond to user comments
     steps:
+      - name: Capture pre-run timestamp
+        # So the failure-check step below only looks at comments PR-Agent
+        # posts in *this* run, not earlier ones.
+        id: pre
+        run: echo "ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
       - name: PR Agent action step
         id: pragent
         # the-pr-agent/pr-agent is the community-maintained continuation of
         # the original open-source, bring-your-own-key PR-Agent — NOT
         # qodo-ai/pr-agent, whose GitHub Action now steers toward Qodo's own
         # hosted (rate-limited) free tier instead of a self-hosted BYOK key.
-        uses: the-pr-agent/pr-agent@main
+        # Pinned to a commit SHA, not @main: this job runs with
+        # contents/pull-requests/issues/checks: write and the repo's
+        # GITHUB_TOKEN, and issue_comment lets any non-bot commenter trigger
+        # it — a mutable ref would mean a compromise of the fork's repo gets
+        # write access here on the next push. Bump deliberately.
+        # SHA is the-pr-agent/pr-agent@main as of 2026-08-21.
+        uses: the-pr-agent/pr-agent@4ebd5c5333c6ef21509e7304d27969eb825e6f22
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Add an OPENROUTER_API_KEY secret in repo Settings > Secrets and
@@ -46,13 +58,44 @@ jobs:
           # effect even on a branch/PR where .pr_agent.toml hasn't reached
           # the default branch yet (chicken-and-egg for a PR that modifies
           # this very file).
-          config.model: 'openrouter/stealth/ox-alpha'
-          config.fallback_models: '["openrouter/free", "openrouter/nvidia/nemotron-3-nano-30b-a3b:free", "openrouter/google/gemma-4-26b-a4b-it:free"]'
+          config.model: 'openrouter/google/gemma-4-26b-a4b-it:free'
+          config.fallback_models: '["openrouter/nvidia/nemotron-3-nano-30b-a3b:free"]'
           # None of the above are in PR-Agent's static MAX_TOKENS table, so
           # every call fails without this — see .pr_agent.toml for detail.
           config.custom_model_max_tokens: '32000'
+          # Default (120s) let a hung call eat 6m47s on PR #28 — see
+          # .pr_agent.toml for detail.
+          config.ai_timeout: '45'
+          # Makes /review and /describe raise instead of silently logging
+          # and returning on failure. Only reaches this job's exit code for
+          # the initial opened/reopened/ready_for_review event — the
+          # push-trigger and issue_comment paths swallow it regardless (see
+          # the guard step below, which is what actually catches those).
+          # /improve doesn't respect this flag at all in any path; the guard
+          # step is what catches it.
+          config.propagate_tool_errors: 'true'
           github_action_config.auto_review: 'true'
           github_action_config.auto_describe: 'true'
           github_action_config.auto_improve: 'true'
           github_action_config.handle_push_trigger: 'true'
           github_action_config.push_commands: '["/review", "/improve"]'
+
+      - name: Fail the check if PR-Agent reported a generation failure
+        # The action's own process always exits 0, even when a tool's LLM
+        # call fails after exhausting every fallback model — it just posts
+        # (or, for /review, silently skips) a failure comment instead of
+        # raising. This is the only thing standing between "PR-Agent
+        # actually reviewed this" and a green check that means nothing —
+        # see PR #28 for the run that motivated this.
+        if: steps.pragent.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number || github.event.issue.number }}"
+          FAILURES=$(gh api "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" | jq \
+            --arg since "${{ steps.pre.outputs.ts }}" \
+            '[.[] | select(.user.login == "github-actions[bot]" and .created_at >= $since and (.body | test("Failed to generate|Failed to review")))] | length')
+          if [ "$FAILURES" -gt 0 ]; then
+            echo "PR-Agent posted $FAILURES failure comment(s) this run — see above on the PR."
+            exit 1
+          fi

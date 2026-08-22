@@ -40,6 +40,10 @@ Useful anchors:
 
 Check `planning/log.md` before treating any decision as arbitrary or open for silent revision.
 
+## Git worktrees
+
+When a task calls for a git worktree, create it under `.claude/worktrees/` (e.g. `.claude/worktrees/chore-ci-workflows`), not as a sibling directory next to the repo.
+
 ## Git: never commit or push without being asked
 
 Do not run `git add`, `git commit`, `git push`, or anything that stages/commits/pushes, unless explicitly told to in that turn. "Fix X" / "update the docs" is not authorization to commit — make the edits, leave them in the working tree, stop.

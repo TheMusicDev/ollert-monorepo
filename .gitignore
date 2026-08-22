@@ -4,3 +4,4 @@
 .env.deploy
 docker/.env
 docker/data/
+.claude/worktrees/
