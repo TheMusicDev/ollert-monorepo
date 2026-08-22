@@ -21,7 +21,7 @@ See [`planning/architecture.md#local-development`](planning/architecture.md#loca
 
 ## CI
 
-`.github/workflows/ci.yml` runs three independent jobs in parallel on every PR against `main`: `api-tests`, `web-tests`, `pr-agent`. `api-tests`/`web-tests` need no setup — they run out of the box. `pr-agent` needs one manual step below before it can run.
+Three independent workflow files run in parallel on every PR against `main`: `.github/workflows/ci_api.yml` (`api-tests`), `ci_web.yml` (`web-tests`), `pr_agent.yml` (`pr_agent_job`) — split into separate files, not one workflow with three jobs, so each triggers and fails independently. `ci_api.yml`/`ci_web.yml` need no setup — they run out of the box. `pr_agent.yml` needs one manual step below before it can run.
 
 ### Setting up PR-Agent
 
@@ -35,7 +35,7 @@ PR-Agent reviews are self-hosted with your own key against OpenRouter, using [`t
 2. **Add it as a repo secret**
    - GitHub → this repo → **Settings** → **Secrets and variables** → **Actions**.
    - **New repository secret**.
-   - Name: `OPENROUTER_API_KEY` (must match exactly — `ci.yml` reads this name).
+   - Name: `OPENROUTER_API_KEY` (must match exactly — `pr_agent.yml` reads this name).
    - Value: the key from step 1.
    - **Add secret**.
 
@@ -43,14 +43,14 @@ PR-Agent reviews are self-hosted with your own key against OpenRouter, using [`t
 
 #### What runs, and when
 
-On a PR's `opened`/`reopened`/`ready_for_review` event, PR-Agent auto-runs three commands, each posting its own comment: `/describe` (PR description), `/review` (an overall review), `/improve` (a code-suggestions table). None of that re-runs on later pushes by default — `handle_push_trigger = true` plus `push_commands = ["/review", "/improve"]` (set both in `.pr_agent.toml` and as env vars in `ci.yml`, see below) re-run those two — not `/describe`, which only needs regenerating if the PR's overall intent changes, not every commit — on every subsequent push too.
+On a PR's `opened`/`reopened`/`ready_for_review` event, PR-Agent auto-runs three commands, each posting its own comment: `/describe` (PR description), `/review` (an overall review), `/improve` (a code-suggestions table). None of that re-runs on later pushes by default — `handle_push_trigger = true` plus `push_commands = ["/review", "/improve"]` (set both in `.pr_agent.toml` and as env vars in `pr_agent.yml`, see below) re-run those two — not `/describe`, which only needs regenerating if the PR's overall intent changes, not every commit — on every subsequent push too.
 
-You can also trigger any command manually by commenting it (e.g. `/improve`) directly on the PR — `ci.yml` listens for `issue_comment` events for exactly this, per the [official reference workflow](https://docs.pr-agent.ai/installation/github/).
+You can also trigger any command manually by commenting it (e.g. `/improve`) directly on the PR — `pr_agent.yml` listens for `issue_comment` events for exactly this, per the [official reference workflow](https://docs.pr-agent.ai/installation/github/).
 
 #### Changing the model
 
-Model selection is set in two places kept in sync: `.pr_agent.toml` at the repo root (the documented mechanism, reads from the default branch) and matching env vars in `.github/workflows/ci.yml`'s `pr-agent` job (`config.model`, `config.fallback_models` — takes effect on every branch immediately, useful for a PR that touches this config before it's merged). It's pinned to `openrouter/stealth/ox-alpha` — an unlisted/preview OpenRouter model, free during its preview window but liable to disappear or start charging without notice. `fallback_models` leads with `openrouter/free` (OpenRouter's own auto-router across whatever free-tier models are currently live) specifically to absorb that. Check [openrouter.ai/collections/free-models](https://openrouter.ai/collections/free-models) for the current roster if you want to pin something else instead — update both files.
+Model selection is set in two places kept in sync: `.pr_agent.toml` at the repo root (the documented mechanism, reads from the default branch) and matching env vars in `.github/workflows/pr_agent.yml` (`config.model`, `config.fallback_models` — takes effect on every branch immediately, useful for a PR that touches this config before it's merged). It's pinned to `openrouter/stealth/ox-alpha` — an unlisted/preview OpenRouter model, free during its preview window but liable to disappear or start charging without notice. `fallback_models` leads with `openrouter/free` (OpenRouter's own auto-router across whatever free-tier models are currently live) specifically to absorb that. Check [openrouter.ai/collections/free-models](https://openrouter.ai/collections/free-models) for the current roster if you want to pin something else instead — update both files.
 
 #### Making these checks required (optional)
 
-None of the three jobs block merging by default — they just run and report. If you want `api-tests`/`web-tests` (or `pr-agent`) to actually gate merges, that's a separate step: GitHub → **Settings** → **Branches** → branch protection rule for `main` → **Require status checks to pass before merging** → select the job(s) by name. Not done here since it changes what other contributors can merge, not just what runs.
+None of the three workflows block merging by default — they just run and report. If you want any of them to actually gate merges, that's a separate step: GitHub → **Settings** → **Branches** → branch protection rule for `main` → **Require status checks to pass before merging** → select the job(s) by name. Not done here since it changes what other contributors can merge, not just what runs.

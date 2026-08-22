@@ -1,0 +1,55 @@
+name: PR-Agent review
+
+# Matches the official reference workflow's trigger exactly:
+# https://docs.pr-agent.ai/installation/github/
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, synchronize]
+  issue_comment:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  checks: write
+
+jobs:
+  pr_agent_job:
+    # Skip bot-authored PRs/comments (e.g. dependabot) — nothing to review.
+    if: ${{ github.event.sender.type != 'Bot' }}
+    runs-on: ubuntu-latest
+    name: Run PR-Agent on every pull request, respond to user comments
+    steps:
+      - name: PR Agent action step
+        id: pragent
+        # the-pr-agent/pr-agent is the community-maintained continuation of
+        # the original open-source, bring-your-own-key PR-Agent — NOT
+        # qodo-ai/pr-agent, whose GitHub Action now steers toward Qodo's own
+        # hosted (rate-limited) free tier instead of a self-hosted BYOK key.
+        uses: the-pr-agent/pr-agent@main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Add an OPENROUTER_API_KEY secret in repo Settings > Secrets and
+          # variables > Actions. Set both env var forms for the key: the
+          # dotted one is PR-Agent's own per-provider convention (see the
+          # reference doc's Claude example, which uses ANTHROPIC.KEY not
+          # ANTHROPIC_API_KEY); the plain one is LiteLLM's own standard
+          # name, in case PR-Agent's provider plumbing reads that directly
+          # for some providers. Costs nothing to set both.
+          OPENROUTER.KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          # Config as literal dotted env var names — PR-Agent's own
+          # convention (confirmed against the reference doc's Claude
+          # example), NOT a Dynaconf __-nesting guess. Also set in
+          # .pr_agent.toml at the repo root as the documented, more
+          # readable mechanism; both are kept in sync so config takes
+          # effect even on a branch/PR where .pr_agent.toml hasn't reached
+          # the default branch yet (chicken-and-egg for a PR that modifies
+          # this very file).
+          config.model: 'openrouter/stealth/ox-alpha'
+          config.fallback_models: '["openrouter/free", "openrouter/nvidia/nemotron-3-nano-30b-a3b:free", "openrouter/google/gemma-4-26b-a4b-it:free"]'
+          github_action_config.auto_review: 'true'
+          github_action_config.auto_describe: 'true'
+          github_action_config.auto_improve: 'true'
+          github_action_config.handle_push_trigger: 'true'
+          github_action_config.push_commands: '["/review", "/improve"]'
