@@ -34,6 +34,10 @@ class OrganizationsFixture extends TestFixture
             'modified' => '2026-01-01 00:00:00',
             'deleted' => null,
         ],
+        // Owned by "poweruser", whose max_cards_per_board is 2
+        // (UsersFixture) — CardsControllerTest's board-wide card quota case
+        // is built on this org's "Card Quota Board" (see
+        // tests/Fixture/{Boards,Lists,Cards}Fixture.php).
         [
             'id' => '30000000-0000-4000-8000-000000000003',
             'owner_id' => '10000000-0000-4000-8000-000000000004',

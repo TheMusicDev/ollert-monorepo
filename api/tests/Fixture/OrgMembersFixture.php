@@ -18,7 +18,8 @@ use Cake\TestSuite\Fixture\TestFixture;
  *   `ListsControllerTest`'s "Quota"/"Empty"/"Standard" boards (see
  *   `BoardsFixture`'s docblock for why they can't live under `...0001`), so
  *   both users need an explicit row there to be recognized as members
- *   despite neither owning it.
+ *   despite neither owning it. `CardsControllerTest` reuses "member"'s row
+ *   here for its "Card Quota Board" coverage rather than adding a new one.
  */
 class OrgMembersFixture extends TestFixture
 {
