@@ -28,18 +28,10 @@ export type TestUsersResult =
   | { ok: false; reason: string }
 
 /** Reads what global-setup produced. Call only from specs — by the time a
- * test runs, global-setup has already written this file. */
+ * test runs, global-setup has already written this file. Every spec that
+ * needs a signed-in user checks `.ok` and calls
+ * `test.skip(!result.ok, result.reason)` before using `.users`. */
 export function loadTestUsersResult(): TestUsersResult {
   const raw = readFileSync(TEST_USERS_FILE, 'utf-8')
   return JSON.parse(raw) as TestUsersResult
-}
-
-/** Convenience for specs that require a signed-in user unconditionally —
- * throws with the recorded reason if global-setup couldn't provide one. */
-export function loadTestUsers(): TestUsers {
-  const result = loadTestUsersResult()
-  if (!result.ok) {
-    throw new Error(result.reason)
-  }
-  return result.users
 }
