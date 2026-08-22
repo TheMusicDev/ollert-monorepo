@@ -92,8 +92,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           PR_NUMBER="${{ github.event.pull_request.number || github.event.issue.number }}"
-          FAILURES=$(gh api "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" \
-            --jq --arg since "${{ steps.pre.outputs.ts }}" \
+          FAILURES=$(gh api "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" | jq \
+            --arg since "${{ steps.pre.outputs.ts }}" \
             '[.[] | select(.user.login == "github-actions[bot]" and .created_at >= $since and (.body | test("Failed to generate|Failed to review")))] | length')
           if [ "$FAILURES" -gt 0 ]; then
             echo "PR-Agent posted $FAILURES failure comment(s) this run — see above on the PR."
