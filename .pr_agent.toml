@@ -35,6 +35,14 @@ custom_model_max_tokens = 32000
 # eating the entire run. Lowered so a hung/overloaded free-tier backend
 # fails fast into the next fallback instead of stalling the whole job.
 ai_timeout = 45
+# Makes /review and /describe raise instead of silently logging and
+# returning on failure — see pr_agent.yml's "Fail the check if PR-Agent
+# reported a generation failure" step for the fuller picture: this alone
+# only reaches the job's exit code on the initial opened/reopened event
+# (push-trigger and issue_comment paths swallow it regardless), and
+# /improve doesn't respect it in any path. The workflow step is what
+# actually makes the check fail for the run that motivated this (PR #28).
+propagate_tool_errors = true
 
 [github_action_config]
 # auto_review/auto_describe/auto_improve default true already (they run
