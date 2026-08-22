@@ -105,18 +105,20 @@ class ApiBootstrapIntegrationTest extends TestCase
     /**
      * The end-to-end path: a real RS256 JWT, verified against a real (cache-
      * seeded) JWKS provider, JIT-provisions a brand-new `users` row, and the
-     * request is then dispatched into a stub controller
-     * (`App\Controller\OrganizationsController`) with no `index` action —
-     * which CakePHP turns into a clean 404 `not_found` envelope
-     * (`Cake\Controller\Exception\MissingActionException`, rendered by
-     * `App\Error\JsonExceptionRenderer`), not a crash. That 404 is the
-     * expected, correct outcome here: it proves the request made it all the
-     * way through auth into controller dispatch instead of being rejected
-     * earlier by routing/CORS/CSRF/auth.
+     * request is then dispatched into `App\Controller\OrganizationsController
+     * ::index()` (`feat/api-organizations`, be-tasks.md's Section 2) — a
+     * clean 200 with an empty paginated envelope for a brand-new user with
+     * no orgs, not a crash. That 200 is the expected, correct outcome here:
+     * it proves the request made it all the way through auth into a real
+     * controller action instead of being rejected earlier by
+     * routing/CORS/CSRF/auth. (Before `feat/api-organizations` landed, this
+     * asserted a 404 `not_found` from CakePHP's `MissingActionException`
+     * against the then-empty stub controller — see be-tasks.md's Section G
+     * for that original scaffolding-only intent.)
      *
      * @return void
      */
-    public function testValidSupabaseJwtPassesAuthAndProvisionsAUserThenReachesTheStub(): void
+    public function testValidSupabaseJwtPassesAuthAndProvisionsAUserThenReachesTheRealAction(): void
     {
         $sub = Text::uuid();
         $email = 'bootstrap-' . $sub . '@example.com';
@@ -139,11 +141,12 @@ class ApiBootstrapIntegrationTest extends TestCase
         $this->configRequest(['headers' => ['Authorization' => 'Bearer ' . $token]]);
         $this->get('/api/orgs');
 
-        // Auth passed and dispatch reached the stub controller's (missing)
-        // `index` action — a clean 404 envelope, not a 401 and not a crash.
-        $this->assertResponseCode(404);
+        // Auth passed and dispatch reached the real `index()` action — an
+        // empty paginated envelope for a user with no orgs yet, not a 401
+        // and not a crash.
+        $this->assertResponseCode(200);
         $body = json_decode((string)$this->_response->getBody(), true);
-        $this->assertSame('not_found', $body['error']['code'] ?? null);
+        $this->assertSame([], $body['data'] ?? null);
 
         $provisioned = $this->usersTable()->find()
             ->where(['supabase_uid' => $sub])

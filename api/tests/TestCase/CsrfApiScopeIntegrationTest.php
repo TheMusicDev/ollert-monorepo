@@ -26,18 +26,30 @@ use RuntimeException;
  * `App\Application::middleware()` queue, real `AuthMiddleware`, real CSRF
  * middleware) with a valid Bearer JWT, the same throwaway-JWKS technique
  * `ApiBootstrapIntegrationTest` uses, and asserts the response is not a
- * CSRF-related 403/400 — it should reach controller dispatch (a clean 404
- * from the `OrganizationsController` stub having no `add` action yet, per
- * `App\Error\JsonExceptionRenderer`) rather than being rejected by CSRF.
+ * CSRF-related 403/400 — it should reach controller dispatch and complete
+ * successfully (a clean 201 from `OrganizationsController::add()`, now
+ * implemented by `feat/api-organizations` — see
+ * `ApiBootstrapIntegrationTest` for the equivalent update there, made when
+ * this stub-controller test was originally written) rather than being
+ * rejected by CSRF.
  */
 class CsrfApiScopeIntegrationTest extends TestCase
 {
     use IntegrationTestTrait;
 
     /**
+     * `app.Organizations` is required (not just `app.Users`) because
+     * `testPostToApiRouteWithValidJwtAndNoCsrfTokenIsNotRejectedByCsrf`'s
+     * `POST /api/orgs` now reaches the real, implemented
+     * `OrganizationsController::add()` (`feat/api-organizations`) and
+     * actually persists an org row — without this fixture declared,
+     * `TruncateStrategy` doesn't know to truncate `organizations` between
+     * tests, and the next test's `users` truncate then fails on the
+     * dangling foreign key.
+     *
      * @var array<string>
      */
-    protected array $fixtures = ['app.Users'];
+    protected array $fixtures = ['app.Users', 'app.Organizations'];
 
     private const ISS = 'https://test-project.supabase.co/auth/v1';
 
@@ -85,9 +97,12 @@ class CsrfApiScopeIntegrationTest extends TestCase
      * never called) must NOT be rejected as a CSRF failure. Before the fix,
      * this 403'd with `{"error":{"code":"forbidden", ...}}` from
      * `InvalidCsrfTokenException`. After the fix, the request clears CSRF
-     * and auth and reaches controller dispatch, landing on a clean 404
-     * (`OrganizationsController` has no `add` action yet) — proving CSRF is
-     * no longer in the way of legitimate `/api/*` traffic.
+     * and auth and reaches controller dispatch, landing on a clean 201 from
+     * `OrganizationsController::add()` — proving CSRF is no longer in the
+     * way of legitimate `/api/*` traffic. (Before `feat/api-organizations`
+     * implemented `add()`, this asserted a 404 `not_found` from the
+     * then-empty stub controller instead — same update
+     * `ApiBootstrapIntegrationTest` made.)
      *
      * @return void
      */
@@ -103,9 +118,9 @@ class CsrfApiScopeIntegrationTest extends TestCase
         ]);
         $this->post('/api/orgs', json_encode(['name' => 'Acme Inc']));
 
-        $this->assertResponseCode(404);
+        $this->assertResponseCode(201);
         $body = json_decode((string)$this->_response->getBody(), true);
-        $this->assertSame('not_found', $body['error']['code'] ?? null);
+        $this->assertSame('Acme Inc', $body['name'] ?? null);
         $this->assertNotSame(403, $this->_response->getStatusCode());
     }
 

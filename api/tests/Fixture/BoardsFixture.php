@@ -16,7 +16,11 @@ use Cake\TestSuite\Fixture\TestFixture;
  *   `OrganizationsFixture`/`UsersFixture` use for the "poweruser" org-quota
  *   case). "Board One" is pre-seeded (via `ListsFixture`/`CardsFixture`)
  *   with two lists — one with two cards — for `BoardsController::view()`'s
- *   nested-response assertions.
+ *   nested-response assertions. These three boards also back
+ *   `OrganizationsControllerTest`'s `GET /api/orgs/:id` boards-containment
+ *   assertion (it asserts the full 3-board set nested under Acme Org rather
+ *   than seeding its own board, to avoid disturbing this org's
+ *   `max_boards_per_org`-pinned quota count).
  *
  * - Org `...0003` ("Power Org Two", owner: "poweruser" — otherwise unused by
  *   any board-count assertion, which is why `ListsControllerTest`'s boards
