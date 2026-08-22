@@ -7,8 +7,6 @@ import {
   addOrgMemberByEmail,
   fetchOrg,
   fetchOrgMembers,
-  findCurrentMember,
-  isOrgOwner,
   removeOrgMember,
 } from '@/lib/org-members'
 import type { OrgMember, OrgSummary } from '@/lib/org-members'
@@ -92,8 +90,7 @@ export function OrgMembersPage({ orgId }: OrgMembersPageProps) {
     }
   }, [orgId, page, reloadToken])
 
-  const currentMember = findCurrentMember(members, user?.email)
-  const isOwner = isOrgOwner(org, currentMember)
+  const isOwner = org?.is_owner ?? false
 
   const handleAdd = async (email: string) => {
     await addOrgMemberByEmail(orgId, email)
@@ -105,7 +102,7 @@ export function OrgMembersPage({ orgId }: OrgMembersPageProps) {
   }
 
   const handleRemove = async (member: OrgMember) => {
-    await removeOrgMember(orgId, member.userId)
+    await removeOrgMember(orgId, member.user_id)
     if (members.length === 1 && page > 1) {
       setPage((current) => current - 1)
     } else {

@@ -108,7 +108,8 @@ export function MembersTable({
             {members.map((member) => {
               const isSelf =
                 !!currentUserEmail &&
-                member.email.toLowerCase() === currentUserEmail.toLowerCase()
+                member.user.email.toLowerCase() ===
+                  currentUserEmail.toLowerCase()
               const canRemove = canRemoveMember(
                 member,
                 currentUserEmail,
@@ -117,7 +118,7 @@ export function MembersTable({
               return (
                 <tr key={member.id}>
                   <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
-                    {member.email}
+                    {member.user.email}
                     {isSelf && (
                       <span className="ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900 dark:text-blue-300">
                         You
@@ -125,7 +126,7 @@ export function MembersTable({
                     )}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                    {member.displayName ?? '—'}
+                    {member.user.display_name ?? '—'}
                   </td>
                   <td className="px-4 py-3 text-right">
                     {canRemove && (
@@ -189,7 +190,7 @@ export function MembersTable({
             </AlertDialog.Title>
             <AlertDialog.Description className="mt-2 text-sm text-gray-500 dark:text-gray-400">
               {pendingRemoval &&
-                `Remove ${pendingRemoval.email} from this organization? They'll lose access to every board here.`}
+                `Remove ${pendingRemoval.user.email} from this organization? They'll lose access to every board here.`}
             </AlertDialog.Description>
             {removeError && (
               <p

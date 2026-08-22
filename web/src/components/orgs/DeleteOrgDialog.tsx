@@ -15,8 +15,9 @@ interface DeleteOrgDialogProps {
 /**
  * Delete-org confirmation. Owner only per planning/api-contract.md#organizations
  * and planning/data-model.md#organizations — the org list hides the Delete
- * action for orgs the API has flagged `is_owner: false`; when that flag is
- * absent, we still attempt the delete and surface a 403 here.
+ * action for orgs the API has flagged `is_owner: false`. This 403 handler
+ * stays as defense in depth (the backend is the real authority), not because
+ * `is_owner` can be absent — it can't, the API always sets it.
  */
 export function DeleteOrgDialog({
   org,

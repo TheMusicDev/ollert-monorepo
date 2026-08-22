@@ -29,12 +29,12 @@ vi.mock('@/lib/org-members', async (importOriginal) => {
   }
 })
 
-const org = { id: 'org-1', ownerId: 'u-owner', name: 'Acme' }
+const org = { id: 'org-1', name: 'Acme', is_owner: true }
 const ownerRow = {
   id: 'm1',
-  userId: 'u-owner',
-  email: 'owner@example.com',
-  displayName: 'Owner',
+  org_id: 'org-1',
+  user_id: 'u-owner',
+  user: { id: 'u-owner', email: 'owner@example.com', display_name: 'Owner' },
   created: '2026-01-01',
 }
 const page1 = {
@@ -73,9 +73,13 @@ describe('OrgMembersPage', () => {
         ownerRow,
         {
           id: 'm2',
-          userId: 'u-member',
-          email: 'member@example.com',
-          displayName: null,
+          org_id: 'org-1',
+          user_id: 'u-member',
+          user: {
+            id: 'u-member',
+            email: 'member@example.com',
+            display_name: null,
+          },
           created: '2026-01-02',
         },
       ],
@@ -91,9 +95,9 @@ describe('OrgMembersPage', () => {
   it('reloads the member list after adding a member', async () => {
     vi.mocked(orgMembers.addOrgMemberByEmail).mockResolvedValue({
       id: 'm2',
-      userId: 'u-new',
-      email: 'new@example.com',
-      displayName: null,
+      org_id: 'org-1',
+      user_id: 'u-new',
+      user: { id: 'u-new', email: 'new@example.com', display_name: null },
       created: '2026-01-03',
     })
     render(<OrgMembersPage orgId="org-1" />)

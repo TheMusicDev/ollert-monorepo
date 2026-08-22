@@ -123,10 +123,10 @@ export function OrgBoardsPage({ orgId }: { orgId: string }) {
 
   const reload = () => setReloadKey((key) => key + 1)
 
-  // Fails safe: an org still loading, errored, or missing `is_owner`
-  // (undocumented field — see planning notes in src/lib/boards-api.ts)
-  // is treated as non-owner, so the create control stays disabled.
-  const isOwner = orgState.status === 'ready' && orgState.org.is_owner === true
+  // An org still loading or errored is treated as non-owner, so the create
+  // control stays disabled until we actually know. `is_owner` itself is
+  // always present once loaded (server-computed, see src/lib/boards-api.ts).
+  const isOwner = orgState.status === 'ready' && orgState.org.is_owner
 
   return (
     <div className="space-y-6">
