@@ -1,8 +1,6 @@
 import type { Locator, Page } from '@playwright/test'
 import { expect } from '@playwright/test'
 
-import { env } from '../setup/env'
-
 /** Logs in through the real `/login` form and waits for the post-login
  * redirect to `/orgs`. */
 export async function login(page: Page, email: string, password: string) {
@@ -77,7 +75,9 @@ export async function expectBoardQuotaExceeded(page: Page, title: string) {
   await page.getByLabel('Board title').fill(title)
   await page.getByRole('button', { name: 'Create' }).click()
 
-  await expect(page.getByText("You have reached this organization's board quota.")).toBeVisible()
+  await expect(page.getByRole('alert')).toHaveText(
+    "You have reached this organization's board quota.",
+  )
   await page.getByRole('button', { name: 'Cancel' }).click()
 }
 
@@ -137,5 +137,3 @@ export function listColumn(page: Page, title: string): Locator {
 export function uniqueName(prefix: string): string {
   return `${prefix} ${Date.now()}-${Math.floor(Math.random() * 1000)}`
 }
-
-export { env }
