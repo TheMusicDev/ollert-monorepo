@@ -39,7 +39,12 @@ jobs:
     name: Run PR-Agent on every pull request, respond to user comments
     steps:
       - name: PR Agent action step
-        uses: the-pr-agent/pr-agent@main
+        # Pin to a commit SHA, not @main — this job runs with write
+        # permissions and your repo's GITHUB_TOKEN, and issue_comment lets
+        # any non-bot commenter trigger it. Check
+        # https://github.com/The-PR-Agent/pr-agent/commits/main for the
+        # latest commit and bump deliberately.
+        uses: the-pr-agent/pr-agent@<commit-sha>
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPENROUTER.KEY: ${{ secrets.OPENROUTER_API_KEY }}
