@@ -12,17 +12,15 @@
 # variables > Actions.
 
 [config]
-# Switched off the pinned "stealth/ox-alpha" preview model: it was the
-# bottleneck behind a ~9min PR-Agent run (single /review call alone took
-# 2m49s). openrouter/free auto-routes across whatever free-tier models are
-# currently live/fast, so no single flaky preview model can bottleneck a
-# run — also avoids the risk of a stealth model disappearing or starting
-# to charge without notice. See https://openrouter.ai/collections/free-models
-# for the current roster if pinning a specific model again later.
-model = "openrouter/free"
+# Dropped openrouter/free (the auto-router): on PR #28 it repeatedly routed
+# to a broken "Stealth" backend (litellm.APIError 502 "Invalid URL") on
+# both /review and /improve. Pinned directly to a specific free model
+# instead — bypasses whatever openrouter/free's router is currently
+# picking. See https://openrouter.ai/collections/free-models for the
+# current roster if this one degrades too.
+model = "openrouter/google/gemma-4-26b-a4b-it:free"
 fallback_models = [
     "openrouter/nvidia/nemotron-3-nano-30b-a3b:free",
-    "openrouter/google/gemma-4-26b-a4b-it:free",
 ]
 # None of the models above are in PR-Agent's static MAX_TOKENS table
 # (pr_agent/algo/__init__.py), so get_max_tokens() raises for every one of
@@ -32,6 +30,11 @@ fallback_models = [
 # larger); bump if a fallback model's confirmed context window is larger
 # and longer diffs get truncated.
 custom_model_max_tokens = 32000
+# Default (120s) didn't actually bound a hung call: on PR #28, the
+# nemotron fallback hung 6m47s past this default before erroring out,
+# eating the entire run. Lowered so a hung/overloaded free-tier backend
+# fails fast into the next fallback instead of stalling the whole job.
+ai_timeout = 45
 
 [github_action_config]
 # auto_review/auto_describe/auto_improve default true already (they run

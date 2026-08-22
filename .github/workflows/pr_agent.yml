@@ -52,11 +52,14 @@ jobs:
           # effect even on a branch/PR where .pr_agent.toml hasn't reached
           # the default branch yet (chicken-and-egg for a PR that modifies
           # this very file).
-          config.model: 'openrouter/free'
-          config.fallback_models: '["openrouter/nvidia/nemotron-3-nano-30b-a3b:free", "openrouter/google/gemma-4-26b-a4b-it:free"]'
+          config.model: 'openrouter/google/gemma-4-26b-a4b-it:free'
+          config.fallback_models: '["openrouter/nvidia/nemotron-3-nano-30b-a3b:free"]'
           # None of the above are in PR-Agent's static MAX_TOKENS table, so
           # every call fails without this — see .pr_agent.toml for detail.
           config.custom_model_max_tokens: '32000'
+          # Default (120s) let a hung call eat 6m47s on PR #28 — see
+          # .pr_agent.toml for detail.
+          config.ai_timeout: '45'
           github_action_config.auto_review: 'true'
           github_action_config.auto_describe: 'true'
           github_action_config.auto_improve: 'true'
