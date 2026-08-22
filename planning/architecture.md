@@ -48,7 +48,7 @@ ollert/
 
 Frontend and API are different origins, and auth is a Bearer token (not a cookie), so there's no need for `Access-Control-Allow-Credentials` — that keeps the policy to a plain origin allow-list, avoiding the wildcard-origin-plus-credentials foot-gun entirely.
 
-* **Allowed origins**: explicit allow-list, not `*`. Dev default `http://localhost:5173`. Production origin(s) added once the deploy target's domain is known — see Deployment below.
+* **Allowed origins**: explicit allow-list, not `*`. Dev default `http://localhost:3000` (TanStack Start's Nitro dev server, pinned via `web/package.json`'s `dev` script — not Vite's usual `5173`). Production origin(s) added once the deploy target's domain is known — see Deployment below.
 * **Allowed headers**: `Authorization`, `Content-Type`.
 * **Allowed methods**: `GET, POST, PATCH, DELETE, OPTIONS`.
 * **Credentials**: not sent, not allowed — no cookies cross the API boundary.

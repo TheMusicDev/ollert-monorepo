@@ -99,7 +99,7 @@ class CorsMiddleware implements MiddlewareInterface
 
     /**
      * Parses the comma-separated `CORS_ALLOWED_ORIGINS` env var into a list of
-     * exact origin strings (e.g. `http://localhost:5173`).
+     * exact origin strings (e.g. `http://localhost:3000`).
      *
      * @return array<string>
      */
