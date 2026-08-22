@@ -54,3 +54,4 @@ Model selection is set in two places kept in sync: `.pr_agent.toml` at the repo 
 #### Making these checks required (optional)
 
 None of the three workflows block merging by default — they just run and report. If you want any of them to actually gate merges, that's a separate step: GitHub → **Settings** → **Branches** → branch protection rule for `main` → **Require status checks to pass before merging** → select the job(s) by name. Not done here since it changes what other contributors can merge, not just what runs.
+
