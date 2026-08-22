@@ -15,7 +15,8 @@ use Cake\TestSuite\TestCase;
  * `OrganizationsFixture` ("Acme Org" owned by owner; two "Power Org" rows
  * owned by poweruser, whose `max_orgs` is 1 — the over-quota case),
  * `OrgMembersFixture` (member is an explicit member of Acme Org), and
- * `BoardsFixture` (one board under Acme Org, for the `view` containment
+ * `BoardsFixture` (three boards under Acme Org — shared with
+ * `BoardsControllerTest`'s quota fixtures — for the `view` containment
  * assertion).
  */
 class OrganizationsControllerTest extends TestCase
@@ -74,27 +75,38 @@ class OrganizationsControllerTest extends TestCase
 
     public function testIndexReturnsOwnedAndMemberOrgsWithCorrectIsOwner(): void
     {
+        // "owner" owns Acme Org outright and, per `OrgMembersFixture`
+        // (added for `ListsControllerTest`'s Power Org Two coverage), is
+        // also an explicit (non-owning) member of Power Org Two — so the
+        // index must return both, in `created ASC` order (Acme first).
         $this->authenticateAs(self::OWNER_SUB, self::OWNER_EMAIL);
         $this->get('/api/orgs');
 
         $this->assertResponseOk();
         $body = $this->decodeBody();
-        $this->assertCount(1, $body['data']);
+        $this->assertCount(2, $body['data']);
         $this->assertSame(self::ACME_ORG_ID, $body['data'][0]['id']);
         $this->assertTrue($body['data'][0]['is_owner']);
-        $this->assertSame(['page' => 1, 'limit' => 20, 'total' => 1, 'totalPages' => 1], $body['meta']);
+        $this->assertSame(self::POWER_ORG_TWO_ID, $body['data'][1]['id']);
+        $this->assertFalse($body['data'][1]['is_owner']);
+        $this->assertSame(['page' => 1, 'limit' => 20, 'total' => 2, 'totalPages' => 1], $body['meta']);
     }
 
     public function testIndexIncludesOrgsWhereUserIsAnExplicitMemberWithIsOwnerFalse(): void
     {
+        // "member" is an explicit (non-owning) member of both Acme Org and
+        // Power Org Two (the latter per `OrgMembersFixture`'s
+        // `ListsControllerTest`-driven rows) — `is_owner` is false for both.
         $this->authenticateAs(self::MEMBER_SUB, self::MEMBER_EMAIL);
         $this->get('/api/orgs');
 
         $this->assertResponseOk();
         $body = $this->decodeBody();
-        $this->assertCount(1, $body['data']);
+        $this->assertCount(2, $body['data']);
         $this->assertSame(self::ACME_ORG_ID, $body['data'][0]['id']);
         $this->assertFalse($body['data'][0]['is_owner']);
+        $this->assertSame(self::POWER_ORG_TWO_ID, $body['data'][1]['id']);
+        $this->assertFalse($body['data'][1]['is_owner']);
     }
 
     public function testIndexExcludesOrgsForAnOutsider(): void
@@ -188,8 +200,8 @@ class OrganizationsControllerTest extends TestCase
         $body = $this->decodeBody();
         $this->assertSame(self::ACME_ORG_ID, $body['id']);
         $this->assertTrue($body['is_owner']);
-        $this->assertCount(1, $body['boards']);
-        $this->assertSame('Launch Board', $body['boards'][0]['title']);
+        $this->assertCount(3, $body['boards']);
+        $this->assertSame('Board One', $body['boards'][0]['title']);
     }
 
     public function testViewReturnsIsOwnerFalseForAMember(): void

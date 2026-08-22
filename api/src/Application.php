@@ -106,9 +106,20 @@ class Application extends BaseApplication
 
             // Cross Site Request Forgery (CSRF) Protection Middleware
             // https://book.cakephp.org/5/en/security/csrf.html#cross-site-request-forgery-csrf-middleware
-            ->add(new CsrfProtectionMiddleware([
+            //
+            // Skipped for `/api/*`: this is a stateless Bearer-JWT API (see
+            // App\Middleware\AuthMiddleware and planning/architecture.md#auth-flow)
+            // with no cookie/session auth for the double-submit-cookie check to
+            // protect. CSRF protection stays active for the leftover skeleton
+            // `Pages`/fallback HTML routes outside `/api`, in case they ever grow
+            // a session-backed form.
+            ->add((new CsrfProtectionMiddleware([
                 'httponly' => true,
-            ]));
+            ]))->skipCheckCallback(function ($request): bool {
+                $path = $request->getUri()->getPath();
+
+                return $path === '/api' || str_starts_with($path, '/api/');
+            }));
 
         return $middlewareQueue;
     }
