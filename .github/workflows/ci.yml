@@ -2,12 +2,21 @@ name: CI
 
 # All three jobs below are independent (no `needs:` between them), so
 # GitHub Actions runs them in parallel automatically.
+#
+# issue_comment (bare — all activity) is here so PR-Agent's manual slash
+# commands (e.g. commenting `/improve` on a PR) work, matching the official
+# reference workflow: https://docs.pr-agent.ai/installation/github/
+# api-tests/web-tests guard themselves to pull_request only (see their
+# `if:` below) so an unrelated issue comment doesn't spin up the full test
+# suite for no reason.
 on:
   pull_request:
+    types: [opened, reopened, ready_for_review, synchronize]
     branches: [main]
+  issue_comment:
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
   issues: write
   checks: write
@@ -16,6 +25,7 @@ jobs:
   api-tests:
     name: API tests (CakePHP / PHPUnit)
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' }}
     defaults:
       run:
         working-directory: api
@@ -53,6 +63,7 @@ jobs:
   web-tests:
     name: Web tests (Vitest / ESLint / tsc)
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' }}
     defaults:
       run:
         working-directory: web
@@ -80,7 +91,7 @@ jobs:
   pr-agent:
     name: PR-Agent review
     runs-on: ubuntu-latest
-    # Skip bot-authored PRs (e.g. dependabot) — nothing useful to review.
+    # Skip bot-authored PRs/comments (e.g. dependabot) — nothing to review.
     if: ${{ github.event.sender.type != 'Bot' }}
     steps:
       - name: PR-Agent
@@ -92,22 +103,27 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Add an OPENROUTER_API_KEY secret in repo Settings > Secrets and
-          # variables > Actions.
+          # variables > Actions. Set both env var forms for the key: the
+          # dotted one is PR-Agent's own per-provider convention (see
+          # https://docs.pr-agent.ai/installation/github/'s Claude example,
+          # which uses ANTHROPIC.KEY not ANTHROPIC_API_KEY); the plain one
+          # is LiteLLM's own standard name, in case PR-Agent's provider
+          # plumbing reads that directly for some providers. Costs nothing
+          # to set both.
+          OPENROUTER.KEY: ${{ secrets.OPENROUTER_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          # Config passed directly as env vars (Dynaconf's __ nesting
-          # convention), NOT via .pr_agent.toml. PR-Agent's repo-settings
-          # fetch (GET .pr_agent.toml from the default branch) empirically
-          # returned 404 in the actual github_action-tagged Docker image
-          # even with the file live on main — confirmed via
-          # gh api repos/.../contents/.pr_agent.toml returning it directly,
-          # same endpoint PR-Agent's own source claims to use. Whatever the
-          # cause (the Docker Hub image tag lagging the GitHub source is the
-          # leading theory), env vars sidestep it entirely and also avoid
-          # the default-branch dependency altogether — this way config
-          # takes effect on every branch immediately, including a PR that's
-          # still open. Keep .pr_agent.toml as documentation only; the env
-          # vars below are the actual, verified-working source of truth.
-          CONFIG__MODEL: 'openrouter/stealth/ox-alpha'
-          CONFIG__FALLBACK_MODELS: '@json ["openrouter/free", "openrouter/nvidia/nemotron-3-nano-30b-a3b:free", "openrouter/google/gemma-4-26b-a4b-it:free"]'
-          GITHUB_ACTION_CONFIG__HANDLE_PUSH_TRIGGER: '@bool true'
-          GITHUB_ACTION_CONFIG__PUSH_COMMANDS: '@json ["/review", "/improve"]'
+          # Config as literal dotted env var names — PR-Agent's own
+          # convention (confirmed against docs.pr-agent.ai's Claude
+          # example), NOT a Dynaconf __-nesting guess. Also set in
+          # .pr_agent.toml at the repo root as the documented, more
+          # readable mechanism; both are kept in sync so config takes
+          # effect even on a branch/PR where .pr_agent.toml hasn't reached
+          # the default branch yet (chicken-and-egg for a PR that modifies
+          # this very file).
+          config.model: 'openrouter/stealth/ox-alpha'
+          config.fallback_models: '["openrouter/free", "openrouter/nvidia/nemotron-3-nano-30b-a3b:free", "openrouter/google/gemma-4-26b-a4b-it:free"]'
+          github_action_config.auto_review: 'true'
+          github_action_config.auto_describe: 'true'
+          github_action_config.auto_improve: 'true'
+          github_action_config.handle_push_trigger: 'true'
+          github_action_config.push_commands: '["/review", "/improve"]'
