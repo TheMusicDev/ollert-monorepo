@@ -14,11 +14,15 @@ use RuntimeException;
  * (planning/api-contract.md#lists), exercised through the real middleware
  * queue (routing, CSRF, `App\Middleware\AuthMiddleware`) via
  * `IntegrationTestTrait`, against `BoardsFixture`/`ListsFixture` — see those
- * files' docblocks for the fixture layout this test relies on.
+ * files' docblocks for the fixture layout this test relies on. The
+ * "Quota"/"Empty"/"Standard" boards this test exercises live under org
+ * `...0003` ("Power Org Two"), not the "Acme Org" (`...0001`) that
+ * `BoardsControllerTest` uses — `BoardsFixture`'s docblock explains why.
  *
  * Authentication: each test signs a Supabase-shaped RS256 JWT for one of the
- * three `UsersFixture` rows relevant to the fixture org ("Acme Org") —
- * owner, explicit member, or outsider — using the same throwaway-keypair
+ * three `UsersFixture` rows relevant to org `...0003` — owner, explicit
+ * member (both via `OrgMembersFixture` rows, since neither owns that org),
+ * or outsider (no relation to it at all) — using the same throwaway-keypair
  * technique as `ApiBootstrapIntegrationTest`, so auth goes through the real
  * `AuthMiddleware`/`SupabaseJwksProvider`, not a mock. Using an existing
  * fixture user's `supabase_uid` as the JWT's `sub` means `AuthMiddleware`
@@ -58,13 +62,13 @@ class ListsControllerTest extends TestCase
 
     private const OUTSIDER_EMAIL = 'outsider@example.com';
 
-    private const QUOTA_BOARD_ID = '50000000-0000-4000-8000-000000000001';
+    private const QUOTA_BOARD_ID = '50000000-0000-4000-8000-000000000004';
 
-    private const EMPTY_BOARD_ID = '50000000-0000-4000-8000-000000000002';
+    private const EMPTY_BOARD_ID = '50000000-0000-4000-8000-000000000005';
 
-    private const STANDARD_BOARD_ID = '50000000-0000-4000-8000-000000000003';
+    private const STANDARD_BOARD_ID = '50000000-0000-4000-8000-000000000006';
 
-    private const STANDARD_LIST_ID = '60000000-0000-4000-8000-000000000006';
+    private const STANDARD_LIST_ID = '60000000-0000-4000-8000-000000000008';
 
     private string $privateKeyPem;
 
