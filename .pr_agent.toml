@@ -2,7 +2,7 @@
 # ("reads a .pr_agent.toml file from your repository root"). Also mirrored
 # as literal dotted env vars (config.model, github_action_config.*, etc. —
 # PR-Agent's own convention, not Dynaconf __-nesting) in
-# .github/workflows/ci.yml's pr-agent job, kept in sync by hand: env vars
+# .github/workflows/pr_agent.yml, kept in sync by hand: env vars
 # apply on every branch immediately, this file only applies once it's live
 # on the default branch — relevant for a PR (like the one that introduced
 # this file) that can't see its own not-yet-merged config. Keep both
@@ -25,6 +25,14 @@ fallback_models = [
     "openrouter/nvidia/nemotron-3-nano-30b-a3b:free",
     "openrouter/google/gemma-4-26b-a4b-it:free",
 ]
+# None of the 4 models above are in PR-Agent's static MAX_TOKENS table
+# (pr_agent/algo/__init__.py), so get_max_tokens() raises for every one of
+# them unless this is set — every review/improve call failed with "Failed
+# to generate prediction with any model" until this was added. 32000 is a
+# conservative floor safe for all 4 (actual context windows are larger);
+# bump if a fallback model's confirmed context window is larger and longer
+# diffs get truncated.
+custom_model_max_tokens = 32000
 
 [github_action_config]
 # auto_review/auto_describe/auto_improve default true already (they run

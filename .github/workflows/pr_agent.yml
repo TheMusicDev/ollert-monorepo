@@ -48,6 +48,9 @@ jobs:
           # this very file).
           config.model: 'openrouter/stealth/ox-alpha'
           config.fallback_models: '["openrouter/free", "openrouter/nvidia/nemotron-3-nano-30b-a3b:free", "openrouter/google/gemma-4-26b-a4b-it:free"]'
+          # None of the above are in PR-Agent's static MAX_TOKENS table, so
+          # every call fails without this — see .pr_agent.toml for detail.
+          config.custom_model_max_tokens: '32000'
           github_action_config.auto_review: 'true'
           github_action_config.auto_describe: 'true'
           github_action_config.auto_improve: 'true'
