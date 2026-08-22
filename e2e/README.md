@@ -100,9 +100,10 @@ If neither path is configured, global-setup doesn't crash the whole run —
 it records why seeding failed, and every spec that needs a signed-in user
 calls `test.skip()` with that reason instead of erroring. Specs that don't
 need one (the plain signup-form test) still run normally. Run the suite with
-neither configured to see this in action: everything except the signup smoke
-test reports `skipped`, each with the actual missing-config reason in the
-Playwright report.
+neither configured to see this in action: everything reports `skipped`, each
+with the actual reason in the Playwright report — the seeded-user specs with
+the missing-config reason from `global-setup`, and the signup-form test with
+whatever Supabase itself returned (see next section).
 
 ### Why not self-serve signup for everything?
 
@@ -136,9 +137,13 @@ everything downstream of "log in." The one thing it genuinely can't cover is
 the moment between submitting the signup form and clicking a confirmation
 link — which is why `tests/specs/auth.spec.ts` still separately drives the
 *real* self-serve signup form once, asserting it correctly lands on the
-"Check your email" screen (see **Known gap**: this one test is itself subject
-to the same project-wide email rate limit, since Supabase attempts to send
-the confirmation email as part of that call).
+"Check your email" screen. That test is itself subject to the same
+project-wide email rate limit (Supabase attempts to send the confirmation
+email as part of the same call), so it treats Supabase's rate-limit error
+banner as a `test.skip()` with the real reason rather than a failure — that
+condition is an external constraint of the shared project, not a regression
+in this app's code, and skipping (vs. failing red for something outside the
+test's control) is the honest way to represent it.
 
 ## Known gap: no `SUPABASE_SERVICE_ROLE_KEY` available at build time
 
@@ -147,9 +152,10 @@ pre-confirmed credentials on hand, so `tests/specs/journey.spec.ts` (the org
 → board → kanban → members flow) could not be run end-to-end for real in
 that environment — every test in it reports `skipped`, each with the exact
 missing-env-var reason from `global-setup.ts`, rather than a fabricated
-pass. The plain signup-form test in `auth.spec.ts` *did* run for real, and
-hit the live rate limit described above (confirmed via a screenshot of the
-actual "email rate limit exceeded" banner) — direct evidence the project has
+pass. The plain signup-form test in `auth.spec.ts` *did* run for real against
+the live stack, and hit the rate limit described above (confirmed via a
+screenshot of the actual "email rate limit exceeded" banner before the
+skip-on-rate-limit handling was added) — direct evidence the project has
 email confirmation enabled and a low send-rate ceiling, which is exactly why
 the Admin API path is the recommended way to run this suite in CI or in an
 environment that does have the service_role key.
