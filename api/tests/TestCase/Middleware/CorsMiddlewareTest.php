@@ -50,7 +50,7 @@ class CorsMiddlewareTest extends TestCase
     public function testAllowedOriginGetsAllowOriginHeaderOnRealRequest(): void
     {
         $this->configRequest(['headers' => ['Origin' => self::ALLOWED_ORIGIN]]);
-        $this->get('/pages/home');
+        $this->get('/api/health');
 
         $this->assertResponseOk();
         $this->assertHeader('Access-Control-Allow-Origin', self::ALLOWED_ORIGIN);
@@ -60,7 +60,7 @@ class CorsMiddlewareTest extends TestCase
     public function testDisallowedOriginGetsNoAllowOriginHeaderOnRealRequest(): void
     {
         $this->configRequest(['headers' => ['Origin' => self::DISALLOWED_ORIGIN]]);
-        $this->get('/pages/home');
+        $this->get('/api/health');
 
         $this->assertResponseOk();
         $this->assertFalse($this->_response->hasHeader('Access-Control-Allow-Origin'));
@@ -69,7 +69,7 @@ class CorsMiddlewareTest extends TestCase
 
     public function testNoOriginHeaderGetsNoCorsHeaders(): void
     {
-        $this->get('/pages/home');
+        $this->get('/api/health');
 
         $this->assertResponseOk();
         $this->assertFalse($this->_response->hasHeader('Access-Control-Allow-Origin'));
@@ -84,7 +84,7 @@ class CorsMiddlewareTest extends TestCase
                 'Access-Control-Request-Method' => 'POST',
             ],
         ]);
-        $this->options('/pages/home');
+        $this->options('/api/health');
 
         $this->assertResponseCode(204);
         $this->assertHeader('Access-Control-Allow-Origin', self::ALLOWED_ORIGIN);
@@ -106,7 +106,7 @@ class CorsMiddlewareTest extends TestCase
                 'Access-Control-Request-Method' => 'POST',
             ],
         ]);
-        $this->options('/pages/home');
+        $this->options('/api/health');
 
         $this->assertResponseCode(204);
         $this->assertFalse($this->_response->hasHeader('Access-Control-Allow-Origin'));
@@ -123,7 +123,7 @@ class CorsMiddlewareTest extends TestCase
                 'Access-Control-Request-Method' => 'GET',
             ],
         ]);
-        $this->options('/pages/home');
+        $this->options('/api/health');
 
         $this->assertFalse($this->_response->hasHeader('Access-Control-Allow-Credentials'));
     }
