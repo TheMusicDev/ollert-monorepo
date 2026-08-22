@@ -84,7 +84,9 @@ class CardsController extends AppController
                     'This board has reached its card quota.',
                 );
 
-                $entity = $cardsTable->newEntity($data);
+                $entity = $cardsTable->newEntity($data, [
+                    'fields' => ['title', 'description', 'due_date', 'position', 'list_id'],
+                ]);
 
                 return $cardsTable->saveOrFail($entity);
             },

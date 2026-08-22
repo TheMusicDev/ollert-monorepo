@@ -204,6 +204,27 @@ class CardsControllerTest extends TestCase
     }
 
     /**
+     * `Card::$_accessible` allows mass-assigning `deleted` (the entity also
+     * backs `edit`, which legitimately never touches it, so it isn't
+     * stripped there) — `add` must not let a client smuggle it in and
+     * create an already-trashed card.
+     */
+    public function testAddIgnoresClientSuppliedDeletedField(): void
+    {
+        $this->actingAs(self::MEMBER_SUB, self::MEMBER_EMAIL);
+
+        $this->post('/api/lists/' . self::LIST_TODO . '/cards', [
+            'title' => 'Not Trashed',
+            'position' => 4.0,
+            'deleted' => '2020-01-01 00:00:00',
+        ]);
+
+        $this->assertResponseCode(201);
+        $card = $this->fetchTable('Cards')->find()->where(['title' => 'Not Trashed'])->firstOrFail();
+        $this->assertNull($card->deleted);
+    }
+
+    /**
      * The Quota Board's owner has `max_cards_per_board: 2`
      * (`UsersFixture`), and the board already has exactly 2 cards *split
      * across two different lists* (Quota Card A on List A, Quota Card B on
