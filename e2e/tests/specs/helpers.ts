@@ -95,7 +95,16 @@ export async function gotoOrg(page: Page, orgId: string) {
  * `PointerSensor` activation-distance threshold (8px) or give it enough
  * intermediate `pointermove` events to register the drag, so this steps
  * the mouse in several small increments instead of jumping straight to
- * the destination. */
+ * the destination.
+ *
+ * `target`'s *center* is deliberately not used as the drop point: when
+ * `target` is a whole `listColumn` and that list is empty (or short), the
+ * center can fall below `BoardList`'s droppable area (`useDroppable` only
+ * covers the region between the header and the "+ Add a card" trigger) and
+ * land on that trigger button instead, which isn't a drop target at all.
+ * Aiming just under the column header — a fixed offset that lands inside
+ * the droppable area regardless of how many cards the list holds — is
+ * reliable for both an empty list and a populated one. */
 export async function dragAndDrop(page: Page, source: Locator, target: Locator) {
   const sourceBox = await source.boundingBox()
   const targetBox = await target.boundingBox()
@@ -106,7 +115,7 @@ export async function dragAndDrop(page: Page, source: Locator, target: Locator) 
   const startX = sourceBox.x + sourceBox.width / 2
   const startY = sourceBox.y + sourceBox.height / 2
   const endX = targetBox.x + targetBox.width / 2
-  const endY = targetBox.y + targetBox.height / 2
+  const endY = targetBox.y + Math.min(40, targetBox.height / 2)
 
   await page.mouse.move(startX, startY)
   await page.mouse.down()
