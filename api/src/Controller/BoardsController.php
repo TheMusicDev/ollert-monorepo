@@ -107,8 +107,8 @@ class BoardsController extends AppController
             return $boardsTable->saveOrFail($board);
         });
 
-        $this->set(compact('board'));
-        $this->viewBuilder()->setOption('serialize', ['board']);
+        $this->set('board', $board);
+        $this->viewBuilder()->setOption('serialize', 'board');
         $this->response = $this->response->withStatus(201);
     }
 
@@ -134,8 +134,8 @@ class BoardsController extends AppController
 
         $this->assertOrgMember($user, $board->org_id);
 
-        $this->set(compact('board'));
-        $this->viewBuilder()->setOption('serialize', ['board']);
+        $this->set('board', $board);
+        $this->viewBuilder()->setOption('serialize', 'board');
     }
 
     /**
@@ -159,8 +159,8 @@ class BoardsController extends AppController
         ]);
         $boardsTable->saveOrFail($board);
 
-        $this->set(compact('board'));
-        $this->viewBuilder()->setOption('serialize', ['board']);
+        $this->set('board', $board);
+        $this->viewBuilder()->setOption('serialize', 'board');
     }
 
     /**

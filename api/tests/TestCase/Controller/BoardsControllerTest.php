@@ -152,9 +152,9 @@ class BoardsControllerTest extends TestCase
         $this->post('/api/orgs/' . self::POWER_ORG_ID . '/boards', ['title' => 'New Board']);
 
         $this->assertResponseCode(201);
-        $body = $this->decodedBody();
-        $this->assertSame('New Board', $body['board']['title']);
-        $this->assertSame(self::POWER_ORG_ID, $body['board']['org_id']);
+        $board = $this->decodedBody();
+        $this->assertSame('New Board', $board['title']);
+        $this->assertSame(self::POWER_ORG_ID, $board['org_id']);
 
         $this->assertSame(
             1,
@@ -190,7 +190,7 @@ class BoardsControllerTest extends TestCase
         $this->get('/api/boards/' . self::BOARD_ONE_ID);
 
         $this->assertResponseOk();
-        $board = $this->decodedBody()['board'];
+        $board = $this->decodedBody();
         $this->assertSame('Board One', $board['title']);
         $this->assertCount(2, $board['lists']);
         $this->assertSame('To Do', $board['lists'][0]['title']);
@@ -228,7 +228,7 @@ class BoardsControllerTest extends TestCase
         $this->patch('/api/boards/' . self::BOARD_TWO_ID, ['title' => 'Renamed Board']);
 
         $this->assertResponseOk();
-        $this->assertSame('Renamed Board', $this->decodedBody()['board']['title']);
+        $this->assertSame('Renamed Board', $this->decodedBody()['title']);
         $this->assertSame(
             'Renamed Board',
             $this->fetchTable('Boards')->get(self::BOARD_TWO_ID)->title,
