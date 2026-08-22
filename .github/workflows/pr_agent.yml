@@ -26,7 +26,13 @@ jobs:
         # the original open-source, bring-your-own-key PR-Agent — NOT
         # qodo-ai/pr-agent, whose GitHub Action now steers toward Qodo's own
         # hosted (rate-limited) free tier instead of a self-hosted BYOK key.
-        uses: the-pr-agent/pr-agent@main
+        # Pinned to a commit SHA, not @main: this job runs with
+        # contents/pull-requests/issues/checks: write and the repo's
+        # GITHUB_TOKEN, and issue_comment lets any non-bot commenter trigger
+        # it — a mutable ref would mean a compromise of the fork's repo gets
+        # write access here on the next push. Bump deliberately.
+        # SHA is the-pr-agent/pr-agent@main as of 2026-08-21.
+        uses: the-pr-agent/pr-agent@4ebd5c5333c6ef21509e7304d27969eb825e6f22
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Add an OPENROUTER_API_KEY secret in repo Settings > Secrets and
@@ -46,8 +52,8 @@ jobs:
           # effect even on a branch/PR where .pr_agent.toml hasn't reached
           # the default branch yet (chicken-and-egg for a PR that modifies
           # this very file).
-          config.model: 'openrouter/stealth/ox-alpha'
-          config.fallback_models: '["openrouter/free", "openrouter/nvidia/nemotron-3-nano-30b-a3b:free", "openrouter/google/gemma-4-26b-a4b-it:free"]'
+          config.model: 'openrouter/free'
+          config.fallback_models: '["openrouter/nvidia/nemotron-3-nano-30b-a3b:free", "openrouter/google/gemma-4-26b-a4b-it:free"]'
           # None of the above are in PR-Agent's static MAX_TOKENS table, so
           # every call fails without this — see .pr_agent.toml for detail.
           config.custom_model_max_tokens: '32000'

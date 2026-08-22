@@ -12,26 +12,25 @@
 # variables > Actions.
 
 [config]
-# Pinned to a specific model per request. Note: "stealth" models on
-# OpenRouter are unlisted/preview releases — free during their preview
-# window, but can disappear or start charging without notice (more
-# volatile than a regular `:free`-suffixed model). openrouter/free (the
-# auto-router across whatever free-tier models are currently live) is
-# kept first in the fallback chain specifically to absorb that. See
-# https://openrouter.ai/collections/free-models for the current roster.
-model = "openrouter/stealth/ox-alpha"
+# Switched off the pinned "stealth/ox-alpha" preview model: it was the
+# bottleneck behind a ~9min PR-Agent run (single /review call alone took
+# 2m49s). openrouter/free auto-routes across whatever free-tier models are
+# currently live/fast, so no single flaky preview model can bottleneck a
+# run — also avoids the risk of a stealth model disappearing or starting
+# to charge without notice. See https://openrouter.ai/collections/free-models
+# for the current roster if pinning a specific model again later.
+model = "openrouter/free"
 fallback_models = [
-    "openrouter/free",
     "openrouter/nvidia/nemotron-3-nano-30b-a3b:free",
     "openrouter/google/gemma-4-26b-a4b-it:free",
 ]
-# None of the 4 models above are in PR-Agent's static MAX_TOKENS table
+# None of the models above are in PR-Agent's static MAX_TOKENS table
 # (pr_agent/algo/__init__.py), so get_max_tokens() raises for every one of
 # them unless this is set — every review/improve call failed with "Failed
 # to generate prediction with any model" until this was added. 32000 is a
-# conservative floor safe for all 4 (actual context windows are larger);
-# bump if a fallback model's confirmed context window is larger and longer
-# diffs get truncated.
+# conservative floor safe for all of them (actual context windows are
+# larger); bump if a fallback model's confirmed context window is larger
+# and longer diffs get truncated.
 custom_model_max_tokens = 32000
 
 [github_action_config]
