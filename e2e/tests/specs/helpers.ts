@@ -6,7 +6,10 @@ import { expect } from '@playwright/test'
 export async function login(page: Page, email: string, password: string) {
   await page.goto('/login')
   await page.getByLabel('Email').fill(email)
-  await page.getByLabel('Password').fill(password)
+  // exact: true - the TanStack Router DevTools panel renders a hidden
+  // "Open match details for /forgot-password" button whose accessible name
+  // contains "password" as a substring, colliding with a loose match.
+  await page.getByLabel('Password', { exact: true }).fill(password)
   await page.getByRole('button', { name: 'Log in' }).click()
   await page.waitForURL('**/orgs')
   await expect(

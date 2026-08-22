@@ -30,7 +30,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 
 import { env } from './env'
 import { AUTH_DIR, TEST_USERS_FILE } from './paths'
-import { provisionUser } from './api-seed'
+import { deleteOwnedOrgs, provisionUser } from './api-seed'
 import { createConfirmedUser, passwordSignIn } from './supabase-admin'
 import type { TestUsers, TestUsersResult } from './test-users'
 
@@ -92,6 +92,15 @@ export default async function globalSetup(): Promise<void> {
     for (const user of [users.owner, users.member]) {
       const { accessToken } = await passwordSignIn(user.email, user.password)
       await provisionUser(accessToken)
+
+      // Fixed pre-existing accounts persist across runs, so an org left
+      // over from a prior run (or manual testing with the same creds)
+      // would otherwise permanently block max_orgs: 1 from ever letting
+      // the journey spec create a fresh one. Admin-created throwaway users
+      // never carry this risk — skip it there, it's a wasted round trip.
+      if (!users.createdViaAdmin) {
+        await deleteOwnedOrgs(accessToken)
+      }
     }
 
     result = { ok: true, users }

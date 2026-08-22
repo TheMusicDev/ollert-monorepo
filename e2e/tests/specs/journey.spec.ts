@@ -200,6 +200,10 @@ test.describe.serial('Ollert end-to-end journey', () => {
     await expect(dialog.getByRole('heading', { name: 'Remove member?' })).toBeVisible()
     await dialog.getByRole('button', { name: 'Remove' }).click()
 
-    await expect(page.getByText(users.member.email)).toBeHidden()
+    // Scoped to the row itself, not a page-wide text match — the
+    // just-closing confirmation dialog's own description text ("Remove
+    // e2e-member@example.org from this organization...") also contains the
+    // email and collides with a loose match while it's unmounting.
+    await expect(row).toBeHidden()
   })
 })
