@@ -1,7 +1,15 @@
-# PR-Agent repo-level config — see .github/workflows/ci.yml's pr-agent job.
+# PR-Agent repo-level config, per https://docs.pr-agent.ai/installation/github/
+# ("reads a .pr_agent.toml file from your repository root"). Also mirrored
+# as literal dotted env vars (config.model, github_action_config.*, etc. —
+# PR-Agent's own convention, not Dynaconf __-nesting) in
+# .github/workflows/ci.yml's pr-agent job, kept in sync by hand: env vars
+# apply on every branch immediately, this file only applies once it's live
+# on the default branch — relevant for a PR (like the one that introduced
+# this file) that can't see its own not-yet-merged config. Keep both
+# updated together; don't let them drift.
+#
 # Requires an OPENROUTER_API_KEY secret in repo Settings > Secrets and
-# variables > Actions (PR-Agent runs on LiteLLM, which reads this exact
-# env var name for OpenRouter — see https://docs.litellm.ai/docs/providers/openrouter).
+# variables > Actions.
 
 [config]
 # Pinned to a specific model per request. Note: "stealth" models on
@@ -19,10 +27,15 @@ fallback_models = [
 ]
 
 [github_action_config]
-# Defaults: auto_review/auto_describe/auto_improve all run once on
-# opened/reopened/ready_for_review; nothing re-runs on later pushes
-# (handle_push_trigger defaults false). We want /review and /improve to
-# also re-run on every push — not /describe, which only needs regenerating
-# if the PR's overall intent changes, not on every commit.
+# auto_review/auto_describe/auto_improve default true already (they run
+# once on opened/reopened/ready_for_review) — set explicitly anyway to
+# match ci.yml and the official reference workflow's Claude example.
+# handle_push_trigger defaults false, so nothing re-ran on later pushes;
+# we want /review and /improve to also re-run on every push — not
+# /describe, which only needs regenerating if the PR's overall intent
+# changes, not on every commit.
+auto_review = true
+auto_describe = true
+auto_improve = true
 handle_push_trigger = true
 push_commands = ["/review", "/improve"]
