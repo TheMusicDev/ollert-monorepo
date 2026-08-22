@@ -1,3 +1,5 @@
+import { Link } from '@tanstack/react-router'
+
 import type { Organization } from '@/lib/orgs-api'
 
 interface OrgTableProps {
@@ -28,9 +30,13 @@ export function OrgTable({ orgs, onRename, onDelete }: OrgTableProps) {
           {orgs.map((org) => (
             <tr key={org.id}>
               <td className="px-4 py-3 text-sm">
-                <span className="font-medium text-gray-900 dark:text-gray-100">
+                <Link
+                  to="/orgs/$orgId"
+                  params={{ orgId: org.id }}
+                  className="font-medium text-gray-900 hover:text-blue-600 dark:text-gray-100 dark:hover:text-blue-400"
+                >
                   {org.name}
-                </span>
+                </Link>
                 {org.is_owner && (
                   <span className="ml-2 inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-200">
                     Owner
