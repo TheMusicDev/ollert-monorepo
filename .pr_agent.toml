@@ -47,3 +47,21 @@ auto_describe = true
 auto_improve = true
 handle_push_trigger = true
 push_commands = ["/review", "/improve"]
+
+[pr_reviewer]
+extra_instructions = """\
+Focus on:
+- Supabase JWT verification, CORS allow-list, and CSRF scope correctness
+- Org-membership authorization (owner-or-self) and mass-assignment guards
+- Quota check-then-act races (see planning/data-model.md#quotas)
+- Error envelope shape adherence (planning/api-contract.md#error-response-shape) — fields is Partial, not Record
+- N+1 / query cost implications for CakePHP associations
+"""
+
+[pr_code_suggestions]
+num_code_suggestions = 5
+suggestions_score_threshold = 7
+
+[pr_description]
+push_labels = true
+publish_labels = true
