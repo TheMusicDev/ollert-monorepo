@@ -14,8 +14,10 @@ use Cake\TestSuite\Fixture\TestFixture;
  * (rather than adding a fifth) avoids growing `OrganizationsFixture`'s row
  * count, which `PaginationComponentTest` asserts against directly; see
  * tests/Fixture/{Boards,Lists,Cards}Fixture.php for the board-wide card
- * quota case this enables, built on this user's existing second org
- * ("Power Org Two"). Table schema comes from the migrated test DB (see
+ * quota case this enables, built on this user's "Card Quota Board" — a
+ * separate board under their existing "Power Org Two", not one of that
+ * org's other (list-quota-focused) boards. Table schema comes from the
+ * migrated test DB (see
  * config/Migrations/20260821203724_CreateUsers.php); other tests (e.g.
  * AuthMiddlewareTest) insert whatever additional rows they need via
  * `UsersTable::findOrCreate()`/`save()` directly, scoped by their own
@@ -71,7 +73,8 @@ class UsersFixture extends TestFixture
             // Owns two orgs against a max_orgs of 1 — QuotaServiceTest's
             // "over quota" (count > limit, not just count == limit) case.
             // Also the card-quota owner for CardsControllerTest (see above):
-            // max_cards_per_board of 2, against "Power Org Two"'s board.
+            // max_cards_per_board of 2, against "Card Quota Board" under
+            // "Power Org Two".
             'id' => '10000000-0000-4000-8000-000000000004',
             'supabase_uid' => '20000000-0000-4000-8000-000000000004',
             'email' => 'poweruser@example.com',

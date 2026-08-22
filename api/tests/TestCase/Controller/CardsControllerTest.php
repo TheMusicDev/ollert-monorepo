@@ -69,27 +69,46 @@ class CardsControllerTest extends TestCase
 
     private const OUTSIDER_EMAIL = 'outsider@example.com';
 
-    // Board One / To Do / In Progress (org 1 — owner 10...01, member 10...02).
+    // "poweruser" (org 3's owner, "Power Org Two") — no relationship to
+    // Acme Org (org 1) at all, used for the cross-org-move 403 case below.
+    private const POWERUSER_SUB = '20000000-0000-4000-8000-000000000004';
+
+    private const POWERUSER_EMAIL = 'poweruser@example.com';
+
+    // "To Do" / "Done" on "Board One" (BoardsFixture's org 1 — owner
+    // 10...01, explicit member 10...02) — reused directly from
+    // BoardsControllerTest's shared fixtures rather than adding new rows,
+    // since Acme Org's board/list/card counts are pinned exactly by
+    // already-merged tests.
     private const LIST_TODO = '60000000-0000-4000-8000-000000000001';
 
     private const LIST_IN_PROGRESS = '60000000-0000-4000-8000-000000000002';
 
-    private const LIST_TRASHED = '60000000-0000-4000-8000-000000000006';
+    // Soft-deleted list on "Board One" — the 404-for-a-trashed-parent case.
+    private const LIST_TRASHED = '60000000-0000-4000-8000-000000000009';
 
-    // Board Two / Board Two List (org 2 — owner 10...04; 10...02 is not a member).
-    private const LIST_OTHER_ORG = '60000000-0000-4000-8000-000000000003';
+    // A "Board One" list too, reused as the cross-org-move target: any
+    // list under Acme Org works for that case, since it only needs to be
+    // an org "poweruser" has no relationship to.
+    private const LIST_OTHER_ORG = '60000000-0000-4000-8000-000000000002';
 
-    // Quota Board / Quota List A / Quota List B (org 4 — owner 10...05,
-    // max_cards_per_board 2; member 10...02 is an explicit member).
-    private const LIST_QUOTA_A = '60000000-0000-4000-8000-000000000004';
+    // "Card Quota List A" / "Card Quota List B" on "Card Quota Board"
+    // (org 3, "Power Org Two" — owner "poweruser", max_cards_per_board 2;
+    // member 10...02 is an explicit member of org 3 via OrgMembersFixture).
+    private const LIST_QUOTA_A = '60000000-0000-4000-8000-000000000010';
 
-    private const LIST_QUOTA_B = '60000000-0000-4000-8000-000000000005';
+    private const LIST_QUOTA_B = '60000000-0000-4000-8000-000000000011';
 
     private const CARD_ONE = '70000000-0000-4000-8000-000000000001';
 
     private const CARD_TWO = '70000000-0000-4000-8000-000000000002';
 
     private const CARD_TRASHED = '70000000-0000-4000-8000-000000000003';
+
+    // "Quota Card A" on "Card Quota List A" — also the source card for the
+    // cross-org-move 403 case ("poweruser" owns it via org 3, but has no
+    // relationship to Acme Org).
+    private const CARD_QUOTA_A = '70000000-0000-4000-8000-000000000004';
 
     private const NONEXISTENT_ID = '70000000-0000-4000-8000-000000000999';
 
@@ -225,7 +244,7 @@ class CardsControllerTest extends TestCase
     }
 
     /**
-     * The Quota Board's owner has `max_cards_per_board: 2`
+     * "Card Quota Board"'s owner ("poweruser") has `max_cards_per_board: 2`
      * (`UsersFixture`), and the board already has exactly 2 cards *split
      * across two different lists* (Quota Card A on List A, Quota Card B on
      * List B — `CardsFixture`). Posting to List B — which on its own only
@@ -302,16 +321,17 @@ class CardsControllerTest extends TestCase
     }
 
     /**
-     * `member` (10...02) belongs to Board One's org but not Board Two's —
+     * "poweruser" (10...04) belongs to "Card Quota Board"'s org (org 3,
+     * via ownership) but has no relationship at all to Acme Org (org 1) —
      * moving a card into a list on a board under an org they're not a
      * member of must 403, even though the card being edited is one they
      * otherwise have access to.
      */
     public function testEditReturns403WhenMovingToListInAnOrgTheUserIsNotAMemberOf(): void
     {
-        $this->actingAs(self::MEMBER_SUB, self::MEMBER_EMAIL);
+        $this->actingAs(self::POWERUSER_SUB, self::POWERUSER_EMAIL);
 
-        $this->patch('/api/cards/' . self::CARD_ONE, [
+        $this->patch('/api/cards/' . self::CARD_QUOTA_A, [
             'list_id' => self::LIST_OTHER_ORG,
             'position' => 1.0,
         ]);
@@ -319,8 +339,8 @@ class CardsControllerTest extends TestCase
         $this->assertResponseCode(403);
         $this->assertSame('not_org_member', $this->decodeBody()['error']['code']);
 
-        $card = $this->fetchTable('Cards')->get(self::CARD_ONE);
-        $this->assertSame(self::LIST_TODO, $card->list_id);
+        $card = $this->fetchTable('Cards')->get(self::CARD_QUOTA_A);
+        $this->assertSame(self::LIST_QUOTA_A, $card->list_id);
     }
 
     public function testEditReturns422ForNonexistentTargetListId(): void
