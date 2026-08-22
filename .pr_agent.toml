@@ -4,14 +4,16 @@
 # env var name for OpenRouter — see https://docs.litellm.ai/docs/providers/openrouter).
 
 [config]
-# openrouter/free is OpenRouter's own auto-router across whatever free-tier
-# models are currently live, rather than one named model — the individual
-# `:free`-suffixed models rotate/deprecate often enough that pinning one
-# directly would silently break this workflow later. See
-# https://openrouter.ai/collections/free-models for the current roster if
-# you want to pin something specific instead.
-model = "openrouter/free"
+# Pinned to a specific model per request. Note: "stealth" models on
+# OpenRouter are unlisted/preview releases — free during their preview
+# window, but can disappear or start charging without notice (more
+# volatile than a regular `:free`-suffixed model). openrouter/free (the
+# auto-router across whatever free-tier models are currently live) is
+# kept first in the fallback chain specifically to absorb that. See
+# https://openrouter.ai/collections/free-models for the current roster.
+model = "openrouter/stealth/ox-alpha"
 fallback_models = [
+    "openrouter/free",
     "openrouter/nvidia/nemotron-3-nano-30b-a3b:free",
     "openrouter/google/gemma-4-26b-a4b-it:free",
 ]

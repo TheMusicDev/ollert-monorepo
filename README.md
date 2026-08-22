@@ -30,7 +30,7 @@ PR-Agent reviews are self-hosted with your own key against OpenRouter, using [`t
 1. **Get an OpenRouter API key**
    - Sign up / log in at [openrouter.ai](https://openrouter.ai).
    - Go to [openrouter.ai/keys](https://openrouter.ai/keys) → **Create Key**.
-   - Copy the key (starts with `sk-or-...`). You don't need to add a payment method or credits — the model this workflow uses (`openrouter/free`, see below) only ever routes to $0 models.
+   - Copy the key (starts with `sk-or-...`). You don't need to add a payment method or credits — the model this workflow uses (`stealth/ox-alpha`, see below) is free during its preview window, and falls back to OpenRouter's `openrouter/free` auto-router if it stops being available.
 
 2. **Add it as a repo secret**
    - GitHub → this repo → **Settings** → **Secrets and variables** → **Actions**.
@@ -43,7 +43,7 @@ PR-Agent reviews are self-hosted with your own key against OpenRouter, using [`t
 
 #### Changing the model
 
-Model selection lives in `.pr_agent.toml` at the repo root, not in `ci.yml`. It's set to `openrouter/free` — OpenRouter's own auto-router across whatever free-tier models are live at request time, chosen specifically because individual `:free`-suffixed models rotate and deprecate often enough that pinning one directly would eventually break this workflow silently. To pin a specific model instead (e.g. for more consistent review quality), check [openrouter.ai/collections/free-models](https://openrouter.ai/collections/free-models) for what's currently free and edit `.pr_agent.toml`'s `model`/`fallback_models`.
+Model selection lives in `.pr_agent.toml` at the repo root, not in `ci.yml`. It's pinned to `openrouter/stealth/ox-alpha` — an unlisted/preview OpenRouter model, free during its preview window but liable to disappear or start charging without notice. `fallback_models` leads with `openrouter/free` (OpenRouter's own auto-router across whatever free-tier models are currently live) specifically to absorb that. Check [openrouter.ai/collections/free-models](https://openrouter.ai/collections/free-models) for the current roster if you want to pin something else instead.
 
 #### Making these checks required (optional)
 
