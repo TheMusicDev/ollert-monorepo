@@ -92,6 +92,22 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Add an OPENROUTER_API_KEY secret in repo Settings > Secrets and
-          # variables > Actions. Model/fallback selection lives in
-          # .pr_agent.toml at the repo root, not here.
+          # variables > Actions.
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          # Config passed directly as env vars (Dynaconf's __ nesting
+          # convention), NOT via .pr_agent.toml. PR-Agent's repo-settings
+          # fetch (GET .pr_agent.toml from the default branch) empirically
+          # returned 404 in the actual github_action-tagged Docker image
+          # even with the file live on main — confirmed via
+          # gh api repos/.../contents/.pr_agent.toml returning it directly,
+          # same endpoint PR-Agent's own source claims to use. Whatever the
+          # cause (the Docker Hub image tag lagging the GitHub source is the
+          # leading theory), env vars sidestep it entirely and also avoid
+          # the default-branch dependency altogether — this way config
+          # takes effect on every branch immediately, including a PR that's
+          # still open. Keep .pr_agent.toml as documentation only; the env
+          # vars below are the actual, verified-working source of truth.
+          CONFIG__MODEL: 'openrouter/stealth/ox-alpha'
+          CONFIG__FALLBACK_MODELS: '@json ["openrouter/free", "openrouter/nvidia/nemotron-3-nano-30b-a3b:free", "openrouter/google/gemma-4-26b-a4b-it:free"]'
+          GITHUB_ACTION_CONFIG__HANDLE_PUSH_TRIGGER: '@bool true'
+          GITHUB_ACTION_CONFIG__PUSH_COMMANDS: '@json ["/review", "/improve"]'
