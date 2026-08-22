@@ -26,5 +26,18 @@ class OrgMembersFixture extends TestFixture
             'modified' => '2026-01-01 00:00:00',
             'deleted' => null,
         ],
+        // "member" is also an explicit (non-owner) member of "Power Org
+        // Two" (owned by "poweruser", max_cards_per_board: 2) — lets
+        // CardsControllerTest prove the card quota is checked against the
+        // *org owner's* max_cards_per_board, not the creating member's own
+        // (much higher) quota.
+        [
+            'id' => '40000000-0000-4000-8000-000000000002',
+            'org_id' => '30000000-0000-4000-8000-000000000003',
+            'user_id' => '10000000-0000-4000-8000-000000000002',
+            'created' => '2026-01-01 00:00:00',
+            'modified' => '2026-01-01 00:00:00',
+            'deleted' => null,
+        ],
     ];
 }
