@@ -330,9 +330,13 @@ function BoardDetailPage() {
 
   return (
     <div>
-      <h1 className="mb-4 text-xl font-semibold text-gray-900 dark:text-gray-100">
+      <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
         {board.title}
       </h1>
+
+      <div className="mb-4 mt-2">
+        <CreateListForm onCreate={handleCreateList} />
+      </div>
 
       {actionError && (
         <p className="mb-4 text-sm text-red-600 dark:text-red-400">
@@ -367,8 +371,6 @@ function BoardDetailPage() {
               ))}
             </SortableContext>
           )}
-
-          <CreateListForm onCreate={handleCreateList} />
         </div>
       </DndContext>
 
