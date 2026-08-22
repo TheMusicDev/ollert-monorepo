@@ -1,0 +1,28 @@
+# PR-Agent repo-level config — see .github/workflows/ci.yml's pr-agent job.
+# Requires an OPENROUTER_API_KEY secret in repo Settings > Secrets and
+# variables > Actions (PR-Agent runs on LiteLLM, which reads this exact
+# env var name for OpenRouter — see https://docs.litellm.ai/docs/providers/openrouter).
+
+[config]
+# Pinned to a specific model per request. Note: "stealth" models on
+# OpenRouter are unlisted/preview releases — free during their preview
+# window, but can disappear or start charging without notice (more
+# volatile than a regular `:free`-suffixed model). openrouter/free (the
+# auto-router across whatever free-tier models are currently live) is
+# kept first in the fallback chain specifically to absorb that. See
+# https://openrouter.ai/collections/free-models for the current roster.
+model = "openrouter/stealth/ox-alpha"
+fallback_models = [
+    "openrouter/free",
+    "openrouter/nvidia/nemotron-3-nano-30b-a3b:free",
+    "openrouter/google/gemma-4-26b-a4b-it:free",
+]
+
+[github_action_config]
+# Defaults: auto_review/auto_describe/auto_improve all run once on
+# opened/reopened/ready_for_review; nothing re-runs on later pushes
+# (handle_push_trigger defaults false). We want /review and /improve to
+# also re-run on every push — not /describe, which only needs regenerating
+# if the PR's overall intent changes, not on every commit.
+handle_push_trigger = true
+push_commands = ["/review", "/improve"]
