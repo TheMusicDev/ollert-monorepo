@@ -17,3 +17,12 @@ fallback_models = [
     "openrouter/nvidia/nemotron-3-nano-30b-a3b:free",
     "openrouter/google/gemma-4-26b-a4b-it:free",
 ]
+
+[github_action_config]
+# Defaults: auto_review/auto_describe/auto_improve all run once on
+# opened/reopened/ready_for_review; nothing re-runs on later pushes
+# (handle_push_trigger defaults false). We want /review and /improve to
+# also re-run on every push — not /describe, which only needs regenerating
+# if the PR's overall intent changes, not on every commit.
+handle_push_trigger = true
+push_commands = ["/review", "/improve"]

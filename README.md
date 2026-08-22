@@ -41,6 +41,12 @@ PR-Agent reviews are self-hosted with your own key against OpenRouter, using [`t
 
 3. **Done** — no further action. The next PR (or a re-run of an existing PR's checks) will pick it up automatically.
 
+#### What runs, and when
+
+On a PR's `opened`/`reopened`/`ready_for_review` event, PR-Agent auto-runs three commands, each posting its own comment: `/describe` (PR description), `/review` (an overall review), `/improve` (a code-suggestions table). None of that re-runs on later pushes by default — this repo's `.pr_agent.toml` overrides that: `handle_push_trigger = true` plus `push_commands = ["/review", "/improve"]` re-run those two (not `/describe`, which only needs regenerating if the PR's overall intent changes, not every commit) on every subsequent push too.
+
+PR-Agent also supports triggering commands by commenting them (e.g. `/improve`) directly on a PR, but that needs an `issue_comment` trigger in `ci.yml` that isn't wired up here — out of scope for now, `push`-triggered `/review`+`/improve` covers the actual ask.
+
 #### Changing the model
 
 Model selection lives in `.pr_agent.toml` at the repo root, not in `ci.yml`. It's pinned to `openrouter/stealth/ox-alpha` — an unlisted/preview OpenRouter model, free during its preview window but liable to disappear or start charging without notice. `fallback_models` leads with `openrouter/free` (OpenRouter's own auto-router across whatever free-tier models are currently live) specifically to absorb that. Check [openrouter.ai/collections/free-models](https://openrouter.ai/collections/free-models) for the current roster if you want to pin something else instead.
