@@ -1,0 +1,17 @@
+# PR-Agent repo-level config — see .github/workflows/ci.yml's pr-agent job.
+# Requires an OPENROUTER_API_KEY secret in repo Settings > Secrets and
+# variables > Actions (PR-Agent runs on LiteLLM, which reads this exact
+# env var name for OpenRouter — see https://docs.litellm.ai/docs/providers/openrouter).
+
+[config]
+# openrouter/free is OpenRouter's own auto-router across whatever free-tier
+# models are currently live, rather than one named model — the individual
+# `:free`-suffixed models rotate/deprecate often enough that pinning one
+# directly would silently break this workflow later. See
+# https://openrouter.ai/collections/free-models for the current roster if
+# you want to pin something specific instead.
+model = "openrouter/free"
+fallback_models = [
+    "openrouter/nvidia/nemotron-3-nano-30b-a3b:free",
+    "openrouter/google/gemma-4-26b-a4b-it:free",
+]
