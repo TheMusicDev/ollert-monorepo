@@ -1,0 +1,52 @@
+# Deploy the web SPA (TanStack Start SPA-mode build -> static files).
+#   cd web && bun run build      # build LOCALLY first (reads web/.env)
+#   kamal deploy -c config/deploy.web.yml
+#
+# One-time: see DEPLOYMENT.md (cloudflared routes ollert.2719.fyi -> http://localhost:80).
+
+service: ollert-web
+image: ollert-web
+
+registry:
+  server: localhost:5555
+  username: ""
+
+servers:
+  - 192.168.1.20
+
+# See deploy.api.yml for the full rationale. Short version: bare host (no
+# user@) because kamal PortForwarding passes servers to Net::SSH as a
+# hostname; user + key from ssh: block (config: true loads ~/.ssh/config's
+# `Host *` IdentityFile).
+ssh:
+  user: amoreno
+  config: true
+
+# The SPA is built locally before deploy (see header) — the Dockerfile just
+# COPIES the pre-built .output/public into nginx. No in-docker bun build, no
+# builder.args, no builder.secrets: TanStack Start's SPA prerender spins up a
+# vite preview server to crawl `/`, and under the bun Nitro preset inside
+# docker that server fails to bind (ConnectionRefused localhost:3000, 0 pages
+# prerendered). Building locally (node-server preset, web/.env) works. VITE_
+# vars are public (publishable key + URL ship in the client bundle), so no
+# build-secret machinery needed. kamal still builds the trivial nginx image on
+# negrita's docker (remote builder) — arch set for the build host.
+builder:
+  arch: amd64                  # negrita is x86_64
+  remote: ssh://amoreno@192.168.1.20
+  local: false
+  context: web
+  dockerfile: web/Dockerfile
+
+# Static SPA — no runtime env. All config is baked at local build time.
+
+# Same as the API: cloudflared owns edge TLS, proxy serves plain HTTP on
+# host port 80. kamal-proxy is shared (one container, port 80) and routes
+# both apps by Host header — see deploy.api.yml for the full rationale.
+# cloudflared's `*.2719.fyi -> http://localhost:80` wildcard routes both.
+proxy:
+  host: ollert.2719.fyi
+  ssl: false
+  app_port: 80
+  run:
+    http_port: 80
