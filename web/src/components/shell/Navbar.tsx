@@ -8,7 +8,7 @@ import { DarkModeToggle } from './DarkModeToggle'
 const menuPopupClassName =
   'min-w-40 rounded-md border border-gray-200 bg-white p-1 text-sm shadow-bottom outline-none dark:border-gray-700 dark:bg-gray-800'
 const menuItemClassName =
-  'cursor-pointer rounded px-2 py-1.5 outline-none data-[highlighted]:bg-gray-100 dark:data-[highlighted]:bg-gray-700'
+  'cursor-pointer rounded px-2 py-1.5 text-gray-700 outline-none data-[highlighted]:bg-gray-100 dark:text-gray-200 dark:data-[highlighted]:bg-gray-700'
 
 /**
  * Top navbar: search, notifications, user menu.
@@ -44,9 +44,14 @@ export function Navbar() {
             U
           </Menu.Trigger>
           <Menu.Portal>
-            <Menu.Positioner sideOffset={8} align="end">
+            <Menu.Positioner sideOffset={8} align="end" className="z-50">
               <Menu.Popup className={menuPopupClassName}>
-                <Menu.Item className={menuItemClassName}>Profile</Menu.Item>
+                <Menu.Item
+                  className={menuItemClassName}
+                  onClick={() => void navigate({ to: '/profile' })}
+                >
+                  Profile
+                </Menu.Item>
                 <Menu.Item
                   className={menuItemClassName}
                   onClick={handleSignOut}

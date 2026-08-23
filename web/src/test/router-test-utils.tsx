@@ -7,6 +7,8 @@ import {
   createRouter,
 } from '@tanstack/react-router'
 
+import { OrgsProvider } from '@/lib/orgs-context'
+
 import { render } from './test-utils'
 
 /**
@@ -21,7 +23,7 @@ export function renderWithRouter(ui: ReactElement) {
   const indexRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/',
-    component: () => ui,
+    component: () => <OrgsProvider>{ui}</OrgsProvider>,
   })
   const orgDetailRoute = createRoute({
     getParentRoute: () => rootRoute,

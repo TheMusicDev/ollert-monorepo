@@ -5,7 +5,7 @@ export interface CreateListFormProps {
   onCreate: (title: string) => Promise<void>
 }
 
-/** Trailing "+ Add another list" column at the end of the board. */
+/** "+ Add another list" control, rendered under the board title. */
 export function CreateListForm({ onCreate }: CreateListFormProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [title, setTitle] = useState('')
@@ -36,7 +36,7 @@ export function CreateListForm({ onCreate }: CreateListFormProps) {
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="h-fit w-72 shrink-0 rounded-lg bg-gray-100/60 px-3 py-2 text-left text-sm font-medium text-gray-600 hover:bg-gray-200 dark:bg-gray-800/60 dark:text-gray-300 dark:hover:bg-gray-800"
+        className="w-fit rounded-lg bg-gray-100/60 px-3 py-2 text-left text-sm font-medium text-gray-600 hover:bg-gray-200 dark:bg-gray-800/60 dark:text-gray-300 dark:hover:bg-gray-800"
       >
         + Add another list
       </button>
@@ -46,7 +46,7 @@ export function CreateListForm({ onCreate }: CreateListFormProps) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="w-72 shrink-0 space-y-2 rounded-lg bg-gray-100 p-3 dark:bg-gray-800"
+      className="w-72 space-y-2 rounded-lg bg-gray-100 p-3 dark:bg-gray-800"
     >
       <input
         autoFocus

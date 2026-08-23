@@ -4,6 +4,7 @@ import { ApiError } from '@/lib/api-client'
 import type { PaginationMeta } from '@/lib/api-client'
 import { listOrgs } from '@/lib/orgs-api'
 import type { Organization } from '@/lib/orgs-api'
+import { useOrgsInvalidation } from '@/lib/orgs-context'
 
 import { CreateOrgDialog } from './CreateOrgDialog'
 import { DeleteOrgDialog } from './DeleteOrgDialog'
@@ -27,6 +28,8 @@ export function OrgsPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [renameTarget, setRenameTarget] = useState<Organization | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Organization | null>(null)
+
+  const { invalidateOrgs } = useOrgsInvalidation()
 
   // Tracks the most recently issued request so an older, slower response
   // can't overwrite state committed by a newer one when requests overlap.
@@ -62,6 +65,7 @@ export function OrgsPage() {
     // New orgs are most likely to want to be seen immediately — reload the
     // first page rather than the (possibly stale) current page.
     void load(1)
+    invalidateOrgs()
   }
 
   const handleRenamed = (org: Organization) => {
@@ -71,12 +75,14 @@ export function OrgsPage() {
     latestRequestId.current += 1
     setOrgs((current) => current.map((o) => (o.id === org.id ? org : o)))
     setRenameTarget(null)
+    invalidateOrgs()
   }
 
   const handleDeleted = (_org: Organization) => {
     setDeleteTarget(null)
     const isLastOnPage = orgs.length === 1
     void load(isLastOnPage && page > 1 ? page - 1 : page)
+    invalidateOrgs()
   }
 
   if (status === 'loading' && orgs.length === 0) {

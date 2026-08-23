@@ -15,7 +15,7 @@ Starting visual language extracted from [windmill-dashboard-react](https://githu
 
 Classic admin-dashboard shell, which fits Ollert's org → boards → board-detail structure well:
 
-* Fixed left **sidebar** (dark background) — org switcher at top, nav links below (boards list, members, settings).
+* Fixed left **sidebar** — org switcher at top, nav links below (boards list, members, settings). Themed the same as the rest of the shell (light/dark via the `class` strategy below), not a permanently-dark panel — an earlier draft of this doc called for a fixed dark background, but that reads as a bug (dark-mode toggle visibly doing nothing to the sidebar) rather than an intentional accent, so it was dropped.
 * Top **navbar** — search, notifications, user menu.
 * Content area: **cards** for summary/stat blocks, **tables** for list views (e.g. org members), and — specific to Ollert, not in the source repo — the kanban board view (lists-of-cards) as the main content area on a board page.
 * Dark mode via Tailwind's `class` strategy (`darkMode: 'class'`), toggled by a class on `<html>`, not media-query-only — matches how Ollert's own artifact/dashboard-style views should behave.

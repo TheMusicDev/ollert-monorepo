@@ -2,6 +2,7 @@ import { Navigate, createFileRoute } from '@tanstack/react-router'
 
 import { AppShell } from '@/components/shell/AppShell'
 import { useAuth } from '@/lib/auth-context'
+import { OrgsProvider } from '@/lib/orgs-context'
 
 /**
  * Pathless layout route: every route nested under `_authenticated/` gets the
@@ -27,5 +28,9 @@ function AuthenticatedLayout() {
     return <Navigate to="/login" />
   }
 
-  return <AppShell />
+  return (
+    <OrgsProvider>
+      <AppShell />
+    </OrgsProvider>
+  )
 }
