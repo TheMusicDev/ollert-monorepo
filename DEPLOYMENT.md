@@ -84,16 +84,25 @@ only choose the passwords.
 
 **Web build-time (local build, NOT `.kamal/secrets`):**
 The web SPA is built **locally** before `kamal deploy` (`bun run build` in
-`web/`, reading `web/.env`). The VITE_ vars live in `web/.env` (gitignored;
-copy `web/.env.example`), not in `.kamal/secrets` — they're public (the
-publishable key + Supabase URL ship in the client bundle) and the local
-build bakes them in. The in-docker bun build was dropped because
-TanStack Start's SPA prerender spins up a vite preview server that fails
-to bind under the bun Nitro preset inside docker (ConnectionRefused
+`web/`). Vite loads env files by mode: `bun run dev` (mode=development) reads
+`web/.env`; `bun run build` (mode=production) reads `web/.env` **then**
+`web/.env.production` (later overrides). So the two env files split by what
+differs between dev and prod:
+- `web/.env` (gitignored; copy `web/.env.example`) — holds the **shared**
+  values + dev API URL: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`
+  (one Supabase project for dev+prod, same in both), and
+  `VITE_API_BASE_URL=http://localhost:8765/api` (dev).
+- `web/.env.production` (gitignored) — holds just the **prod** override:
+  `VITE_API_BASE_URL=https://ollert-api.2719.fyi/api`. Nothing else —
+  Supabase vars carry through from `web/.env`.
+
+The VITE_ vars are public (publishable key + Supabase URL ship in the client
+bundle), so no build-secret machinery. **Without `.env.production`, the prod
+build falls back to `web/.env` and bakes in `localhost:8765` → prod SPA calls
+the dev API and CORS-blocks.** The in-docker bun build was dropped because
+TanStack Start's SPA prerender spins up a vite preview server that fails to
+bind under the bun Nitro preset inside docker (ConnectionRefused
 localhost:3000, 0 pages prerendered); building locally works.
-- `VITE_API_BASE_URL` — `https://ollert-api.2719.fyi/api`
-- `VITE_SUPABASE_URL` — `https://<project-ref>.supabase.co`
-- `VITE_SUPABASE_PUBLISHABLE_KEY` — your `sb_publishable_…`
 
 ### 3. Boot the database (once)
 
