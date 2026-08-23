@@ -35,7 +35,7 @@ Bare-bones: orgs, boards, lists, cards, drag-drop reorder (within and across lis
 * `/api` — PHPUnit, CakePHP's standard, using CakePHP's built-in fixture system for test data.
 * `/web` — Vitest for unit/component tests, ad hoc in-memory data/mocks (no fixture system needed at this scale).
 * **e2e** — Playwright, run against the real built frontend and a running API rather than living inside the Vitest toolchain. Test data seeded through the real API (a Playwright global-setup script), not direct DB inserts — exercises the same code path real users hit. Not phased in until Phase 3 at the earliest; unit-level coverage comes first.
-* **CI**: none for the MVP — solo project, deploy is already manual/SSH rather than CI-driven (see Deployment), so CI would only gate PRs. Revisit if this stops being a solo effort.
+* **CI**: three parallel GitHub Actions workflows gate every PR against `main` — PHPUnit (`/api`), Vitest/ESLint/tsc (`/web`), and an AI review (`the-pr-agent/pr-agent`, self-hosted against OpenRouter's free tier). Not part of the original MVP plan (deploy is still manual/SSH, not CI-driven — see Deployment) but added once PRs started needing review with no other reviewer available. See root `README.md#ci` and `PR_AGENT_SETUP.md`.
 
 # Deferred (post-MVP)
 
