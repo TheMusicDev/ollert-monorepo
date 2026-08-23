@@ -6,7 +6,10 @@
     "dev:db": "bash scripts/docker-start.sh",
     "dev:stop": "bash scripts/docker-stop.sh",
     "dev:api": "cd api && bin/cake server -p 8765",
-    "dev:web": "cd web && bun run dev"
+    "dev:web": "cd web && bun run dev",
+    "deploy": "kamal deploy -c config/deploy.api.yml && ( cd web && bun run build ) && kamal deploy -c config/deploy.web.yml",
+    "deploy:api": "kamal deploy -c config/deploy.api.yml",
+    "deploy:web": "( cd web && bun run build ) && kamal deploy -c config/deploy.web.yml"
   },
   "devDependencies": {
     "concurrently": "^10.0.5"
