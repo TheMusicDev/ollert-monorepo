@@ -1,0 +1,14 @@
+{
+  "name": "ollert",
+  "private": true,
+  "scripts": {
+    "dev": "bash scripts/docker-start.sh && concurrently -n api,web -c green,magenta \"cd api && bin/cake server -p 8765\" \"cd web && bun run dev\"",
+    "dev:db": "bash scripts/docker-start.sh",
+    "dev:stop": "bash scripts/docker-stop.sh",
+    "dev:api": "cd api && bin/cake server -p 8765",
+    "dev:web": "cd web && bun run dev"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5"
+  }
+}
