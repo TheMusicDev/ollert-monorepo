@@ -13,6 +13,7 @@ Stripped-down Trello clone. CakePHP backend, Supabase Auth for user management, 
 * [API Contract](api-contract.md) - REST endpoints CakePHP exposes to the frontend
 * [Design](design.md) - color palette, typography, layout pattern for the FE
 * [Roadmap](roadmap.md) - MVP scope, phases, and deferred work
+* [MCP Server](mcp-server.md) - Node/TS MCP server design for claude.ai custom connector access
 
 # History
 
