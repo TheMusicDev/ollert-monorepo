@@ -25,11 +25,15 @@ export async function apiFetch<T>(
 ): Promise<T> {
   const res = await fetch(`${config.apiBaseUrl}${path}`, {
     ...init,
+    // ponytail: caller-supplied headers spread FIRST so the verified
+    // Authorization + Accept + Content-Type below can never be clobbered by
+    // a caller passing its own Authorization. Auth header is a trust boundary
+    // — the resource server's own token must always win.
     headers: {
+      ...(init.headers as Record<string, string> | undefined),
       Authorization: `Bearer ${bearer}`,
       Accept: "application/json",
       ...(init.body ? { "Content-Type": "application/json" } : {}),
-      ...(init.headers ?? {}),
     },
   });
 

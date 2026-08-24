@@ -139,7 +139,7 @@ guards) or requires auth will **400/401 the healthcheck** on every path,
 because the middleware runs before routing. The app never gets a chance to
 return 200.
 
-Two clean fixes (pick one):
+Three clean fixes (pick one):
 
 1. **Static health file in the webroot** (preferred for PHP/Rails-style
    apps). Add `webroot/health` (or `public/up`) — the front web server

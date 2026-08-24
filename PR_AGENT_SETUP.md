@@ -107,20 +107,21 @@ fails *loudly* — the action step exits non-zero — and it's not a dead slug, 
 bad key, or a config error. It's a **model-quality** failure.
 
 `auto_review` / `auto_describe` ask the model for structured YAML. Free-tier
-models sometimes return that YAML **wrapped in markdown code fences** (```
-```yaml … ``` ```) or **duplicated** in the same response. PR-Agent's
-`load_yaml` / `try_fix_yaml` can't extract parseable YAML from a fenced
-response → the parse returns `None` → the next line,
-`if 'review' not in data:` (in `pr_reviewer.py`), throws
-`TypeError: argument of type 'NoneType' is not iterable`.
+models sometimes return that YAML wrapped in markdown code fences or
+duplicated as multiple documents in one response. PR-Agent's `load_yaml` /
+`try_fix_yaml` can handle a single fenced block but not a fenced-or-duplicated
+one → the parse returns `None` → the next line, `if 'review' not in data:`
+(in `pr_reviewer.py`), throws `TypeError: argument of type 'NoneType' is not
+iterable`.
 
-The kicker: **`retry_with_fallback_models` only retries on API-level
-failures** (429, timeout, 5xx) — **not** on a 200 whose body is unparseable.
-So once the primary model returns *a* response (HTTP 200) with bad content,
-the fallback list is **never consulted**. The parse failure is terminal, and
-with `propagate_tool_errors = true` (this repo's setting, deliberate so
-failures stay visible) any one tool's parse failure crashes the whole action
-step before the other tools run.
+The kicker: the YAML parse happens **after** `retry_with_fallback_models`
+returns its response — the retry wrapper guards the API call itself (429,
+timeout, 5xx, any exception thrown *during* the call), not the downstream
+parse. A 200 with an unparseable body is a successful call from the wrapper's
+view, so the fallback list is **never consulted**. The parse failure is
+terminal, and with `propagate_tool_errors = true` (this repo's setting,
+deliberate so failures stay visible) any one tool's parse failure crashes
+the whole action step before the other tools run.
 
 Mitigation: pick the **strongest instruction-follower** as `model` (one that
 reliably returns raw YAML without fences), and keep the weaker / more
