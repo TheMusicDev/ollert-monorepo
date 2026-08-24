@@ -12,7 +12,7 @@ export function registerBoards(server: McpServer, bearer: string): void {
     {
       description: "List boards in an org (paginated).",
       inputSchema: z.object({
-        org_id: z.string().min(1),
+        org_id: z.string().uuid(),
         page: z.number().int().positive().optional(),
         limit: z.number().int().positive().max(100).optional(),
       }),
@@ -24,7 +24,7 @@ export function registerBoards(server: McpServer, bearer: string): void {
     "create_board",
     {
       description: "Create a board under an org (org owner only; 422 if over max_boards_per_org).",
-      inputSchema: z.object({ org_id: z.string().min(1), name: z.string().min(1) }),
+      inputSchema: z.object({ org_id: z.string().uuid(), name: z.string().min(1) }),
     },
     async (a) => run(() => apiFetch<Board>(`/api/orgs/${a.org_id}/boards`, bearer, { method: "POST", body: JSON.stringify({ name: a.name }) })),
   );
@@ -33,7 +33,7 @@ export function registerBoards(server: McpServer, bearer: string): void {
     "get_board",
     {
       description: "Get a board with its lists + cards nested (unpaginated — full kanban).",
-      inputSchema: z.object({ id: z.string().min(1) }),
+      inputSchema: z.object({ id: z.string().uuid() }),
     },
     async (a) => run(() => apiFetch<Board>(`/api/boards/${a.id}`, bearer)),
   );
@@ -42,7 +42,7 @@ export function registerBoards(server: McpServer, bearer: string): void {
     "update_board",
     {
       description: "Rename a board (any org member).",
-      inputSchema: z.object({ id: z.string().min(1), name: z.string().min(1) }),
+      inputSchema: z.object({ id: z.string().uuid(), name: z.string().min(1) }),
     },
     async (a) => run(() => apiFetch<Board>(`/api/boards/${a.id}`, bearer, { method: "PATCH", body: JSON.stringify({ name: a.name }) })),
   );
@@ -51,7 +51,7 @@ export function registerBoards(server: McpServer, bearer: string): void {
     "delete_board",
     {
       description: "Delete a board (any org member; soft delete).",
-      inputSchema: z.object({ id: z.string().min(1) }),
+      inputSchema: z.object({ id: z.string().uuid() }),
     },
     async (a) => run(() => apiFetch<{ id: string }>(`/api/boards/${a.id}`, bearer, { method: "DELETE" })),
   );

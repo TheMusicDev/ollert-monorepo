@@ -9,7 +9,7 @@ generated: { by: "claude-code/sonnet-5", at: "2026-08-23T00:00:00Z" }
 
 # Summary
 
-`mcp/` is a new, separate top-level service (sibling to `api/` and `web/`) exposing Ollert's REST API as MCP (Model Context Protocol) tools, so claude.ai's hosted "custom connector" feature can manage a user's boards/lists/cards on their behalf. It is a thin client of the existing CakePHP API — no business logic, authorization, or quota checks are reimplemented in Node. Not yet built; this documents the design decided on before implementation starts.
+`mcp/` is a new, separate top-level service (sibling to `api/` and `web/`) exposing Ollert's REST API as MCP (Model Context Protocol) tools, so claude.ai's hosted "custom connector" feature can manage a user's boards/lists/cards on their behalf. It is a thin client of the existing CakePHP API — no business logic, authorization, or quota checks are reimplemented in Node. Built and deployed 2026-08-24 — see [Deployment](#deployment) and [Implementation order](#implementation-order-highest-risk-unknowns-first) below.
 
 # Why Node, not PHP
 
@@ -21,7 +21,7 @@ claude.ai's hosted custom connectors require OAuth 2.1 on the remote MCP server 
 
 Supabase Auth now ships a native OAuth 2.1 + OIDC authorization server built specifically for MCP use cases (public beta since Nov 2025), issuing access tokens signed with the **same JWKS/keys** as normal Supabase login JWTs — the ones `api/src/Middleware/AuthMiddleware.php` already verifies (see [Architecture § Auth Flow](architecture.md#auth-flow)). This means `mcp/` never issues, stores, or refreshes tokens itself:
 
-* It validates every incoming Bearer token against Supabase's JWKS, mirroring `AuthMiddleware.php`'s checks (RS256 signature, `iss`, `aud`, `exp`, `sub`) — same rules, ported to TypeScript (`jose`), not reinvented.
+* It validates every incoming Bearer token against Supabase's JWKS, mirroring `AuthMiddleware.php`'s checks (RS256 signature, `iss`, `aud`, `exp`, `sub`, `email`) — same rules, ported to TypeScript (`jose`), not reinvented.
 * It publishes RFC 9728 protected-resource metadata (`/.well-known/oauth-protected-resource`) pointing claude.ai at Supabase's authorization-server metadata (`https://<project-ref>.supabase.co/.well-known/oauth-authorization-server/auth/v1`) — the actual authorize/token/refresh/dynamic-client-registration dance happens directly between claude.ai and Supabase, never touching `mcp/`.
 * It forwards the caller's Bearer token unchanged to `api/` on every tool call — `api/`'s existing middleware verifies it exactly as it does today for the frontend.
 
@@ -29,7 +29,7 @@ Supabase Auth now ships a native OAuth 2.1 + OIDC authorization server built spe
 
 **Open risk, confirmed 2026-08-24**: the Supabase project's native OAuth server was initially **disabled** — `GET .../.well-known/oauth-authorization-server/auth/v1` returned `404 {"error_code":"feature_disabled","msg":"OAuth server is disabled"}`. This was the real blocker for the end-to-end claude.ai↔Supabase OAuth dance (authorize/token/DCR all live behind that feature flag). **Cleared the same day**: user enabled the OAuth 2.1 server in the Supabase dashboard; `buildHandler()` now boots against the real AS-metadata URL (200, `issuer` matches `config.jwtIss`). End-to-end dance verified — see [Change log](log.md) 2026-08-24.
 
-**Open risk, still unverified**: whether the `aud` claim on OAuth-flow-issued tokens matches `SUPABASE_JWT_AUD` (the value `AuthMiddleware.php` currently checks). If not, `verifyAccessToken()` in `mcp/src/auth/verifyToken.ts` needs to accept either audience — that is the single place to widen it. Cannot be confirmed until the Supabase OAuth server is enabled and a real OAuth-flow token can be obtained.
+**`aud`-claim compatibility — VERIFIED 2026-08-24**: the `aud` claim on OAuth-flow-issued tokens matches `SUPABASE_JWT_AUD` (`authenticated`). A real claude.ai↔Supabase connector dance produced a token `verifyToken.ts` accepted with no audience-widening. See [Open risks](#open-risks) for the resolved entry.
 
 # Architecture
 
@@ -82,7 +82,7 @@ mcp/
     types.ts               # mirrors api-contract.md resource shapes exactly
     auth/
       jwks.ts                # jose createRemoteJWKSet against SUPABASE_JWKS_URL
-      verifyToken.ts          # ports AuthMiddleware.php's claim checks (iss/aud/sub/exp); SDK OAuthTokenVerifier → returns AuthInfo, throws OAuthError(InvalidToken)
+      verifyToken.ts          # ports AuthMiddleware.php's claim checks (iss/aud/sub/exp/email); SDK OAuthTokenVerifier → returns AuthInfo, throws OAuthError(InvalidToken)
     tools/
       orgs.ts                 # list_orgs, create_org, get_org, update_org, delete_org
       orgMembers.ts            # list_org_members, add_org_member, remove_org_member
@@ -94,7 +94,7 @@ mcp/
 
 Tool wrappers are 1:1 (or close to it) with [API Contract](api-contract.md)'s ~19 endpoints — that document is the sole authority for request/response shapes, pagination, and error codes; this doc doesn't re-derive them.
 
-New file outside `mcp/`: `web/src/routes/oauth/consent.tsx` (exact path TBD against what Supabase's flow actually redirects to), following the existing pattern in `web/src/routes/auth/callback.tsx` and reusing `web/src/lib/supabase.ts`'s client plus `web/src/components/auth/` (`AuthCard`, `SubmitButton`, `FormError`).
+New file outside `mcp/`: `web/src/routes/oauth/consent.tsx` (`/oauth/consent`, built — see [Implementation order](#implementation-order-highest-risk-unknowns-first) step 4), following the existing pattern in `web/src/routes/auth/callback.tsx` and reusing `web/src/lib/supabase.ts`'s client plus `web/src/components/auth/` (`AuthCard`, `SubmitButton`, `FormError`).
 
 # Config
 
@@ -116,7 +116,7 @@ Kamal deploys a Docker container to a machine on the local network; Cloudflare (
 2. DONE: scaffold `mcp/`, wire resource-server auth — JWKS validation (`verifier: OAuthTokenVerifier`), protected-resource metadata + AS metadata (SDK `oauthMetadataResponse`, path-aware → `/.well-known/oauth-protected-resource/mcp`), 401 challenge (SDK `bearerAuthChallengeResponse` via `requireBearerAuth`). Server boots, all routes smoke-tested against a stub AS-metadata doc.
 3. DONE: `apiClient.ts` error-envelope translation + all 18 tools (`registerTool` 1:1 with api-contract.md). `bun run typecheck` green.
 4. DONE: `web/` consent route built — `web/src/routes/oauth/consent.tsx` (`/oauth/consent`, public — not under `_authenticated/`). Reads `authorization_id`, inline sign-in when no session (reuses `AuthCard`/`FormField`/`SubmitButton`/`FormError` + `useAuth().signIn`), calls `supabase.auth.oauth.getAuthorizationDetails` → renders client name/logo/URI + scopes + redirect_uri, `approveAuthorization`/`denyAuthorization` with `skipBrowserRedirect:true` → `window.location.href = data.redirect_url` (avoids the `redirect_to` docs footgun, supabase#45006). `tsc` + `eslint` + `bun run build` all green.
-5. Local dev/testing via `@modelcontextprotocol/inspector` against local `api/` + the hosted Supabase project; claude.ai verification via the tunnel — needs a real OAuth-flow token (server now enabled, see Open risks).
+5. Local dev/testing via `@modelcontextprotocol/inspector` against local `api/` + the hosted Supabase project; claude.ai verification via the tunnel — superseded by step 6 (real deploy + E2E dance verified).
 6. DONE (2026-08-24): real deploy — `kamal deploy -c config/deploy.mcp.yml` → `ollert-mcp.2719.fyi` behind the shared kamal-proxy (cloudflared `*.2719.fyi` wildcard covered the new host). One fix: `/health` moved before the `hostHeaderValidationResponse` guard (kamal-proxy healthchecks by docker-internal Host → 403 under the DNS-rebinding check; `/health` returns only `ok`, safe to exempt — mirrors api's nginx-static-health pattern). The web SPA also needed redeploying to pick up the `/oauth/consent` route (live container predating `518ae57` 404'd on first connect). End-to-end claude.ai↔Supabase dance verified: `aud` claim matches `SUPABASE_JWT_AUD=authenticated`, no widening needed. See [Change log](log.md) 2026-08-24.
 
 # Open risks

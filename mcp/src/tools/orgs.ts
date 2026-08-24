@@ -27,19 +27,19 @@ export function registerOrgs(server: McpServer, bearer: string): void {
 
   server.registerTool(
     "get_org",
-    { description: "Get one org with its boards.", inputSchema: z.object({ id: z.string().min(1) }) },
+    { description: "Get one org with its boards.", inputSchema: z.object({ id: z.string().uuid() }) },
     async (a) => run(() => apiFetch<Org>(`/api/orgs/${a.id}`, bearer)),
   );
 
   server.registerTool(
     "update_org",
-    { description: "Rename an org (owner or member).", inputSchema: z.object({ id: z.string().min(1), name: z.string().min(1) }) },
+    { description: "Rename an org (owner or member).", inputSchema: z.object({ id: z.string().uuid(), name: z.string().min(1) }) },
     async (a) => run(() => apiFetch<Org>(`/api/orgs/${a.id}`, bearer, { method: "PATCH", body: JSON.stringify({ name: a.name }) })),
   );
 
   server.registerTool(
     "delete_org",
-    { description: "Delete an org (owner only; soft delete).", inputSchema: z.object({ id: z.string().min(1) }) },
+    { description: "Delete an org (owner only; soft delete).", inputSchema: z.object({ id: z.string().uuid() }) },
     async (a) => run(() => apiFetch<{ id: string }>(`/api/orgs/${a.id}`, bearer, { method: "DELETE" })),
   );
 }

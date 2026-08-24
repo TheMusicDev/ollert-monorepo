@@ -12,7 +12,7 @@ export function registerOrgMembers(server: McpServer, bearer: string): void {
     {
       description: "List members of an org (paginated).",
       inputSchema: z.object({
-        org_id: z.string().min(1),
+        org_id: z.string().uuid(),
         page: z.number().int().positive().optional(),
         limit: z.number().int().positive().max(100).optional(),
       }),
@@ -24,7 +24,7 @@ export function registerOrgMembers(server: McpServer, bearer: string): void {
     "add_org_member",
     {
       description: "Add a member by email (must already have an Ollert account).",
-      inputSchema: z.object({ org_id: z.string().min(1), email: z.string().email() }),
+      inputSchema: z.object({ org_id: z.string().uuid(), email: z.string().email() }),
     },
     async (a) => run(() => apiFetch<OrgMember>(`/api/orgs/${a.org_id}/members`, bearer, { method: "POST", body: JSON.stringify({ email: a.email }) })),
   );
@@ -33,7 +33,7 @@ export function registerOrgMembers(server: McpServer, bearer: string): void {
     "remove_org_member",
     {
       description: "Remove a member (owner only, or a member removing themself).",
-      inputSchema: z.object({ org_id: z.string().min(1), user_id: z.string().min(1) }),
+      inputSchema: z.object({ org_id: z.string().uuid(), user_id: z.string().uuid() }),
     },
     async (a) => run(() => apiFetch<{ id: string }>(`/api/orgs/${a.org_id}/members/${a.user_id}`, bearer, { method: "DELETE" })),
   );

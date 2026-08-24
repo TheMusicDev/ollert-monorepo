@@ -58,7 +58,15 @@ export async function buildHandler(): Promise<(request: Request) => Promise<Resp
   // Fetch Supabase's AS metadata once at startup. buildOAuthProtectedResourceMetadata
   // (called inside oauthMetadataResponse) validates the issuer URL is HTTPS and embeds
   // it as `authorization_servers` so clients discover Supabase's own AS endpoints.
-  const res = await fetch(config.asMetadataUrl);
+  // Bound the startup metadata fetch — without a deadline a stalled request
+  // hangs the server (no /health) until Bun's ~300s socket-idle timeout.
+  let res: Response;
+  try {
+    res = await fetch(config.asMetadataUrl, { signal: AbortSignal.timeout(5_000) });
+  } catch (e) {
+    console.error(`mcp: failed to fetch AS metadata from ${config.asMetadataUrl} (${e instanceof Error ? e.message : String(e)}).`);
+    process.exit(1);
+  }
   if (!res.ok) {
     console.error(`mcp: failed to fetch AS metadata from ${config.asMetadataUrl} (${res.status}).`);
     process.exit(1);
