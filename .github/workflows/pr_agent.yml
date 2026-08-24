@@ -59,7 +59,14 @@ jobs:
           # the default branch yet (chicken-and-egg for a PR that modifies
           # this very file).
           config.model: 'openrouter/google/gemma-4-26b-a4b-it:free'
-          config.fallback_models: '["openrouter/nvidia/nemotron-3-nano-30b-a3b:free"]'
+          # nemotron-3-nano-30b-a3b:free 404'd on PR #30 ("unavailable for
+          # free, paid slug nvidia/nemotron-3-nano-30b-a3b") — OpenRouter
+          # dropped that free slug. Replaced with two live free models so a
+          # transient 429 on the gemma primary (also happened on #30,
+          # shared free pool) doesn't cascade into a single dead fallback.
+          # Verify the roster at https://openrouter.ai/collections/free-models
+          # if these degrade too. Keep in sync with .pr_agent.toml.
+          config.fallback_models: '["openrouter/nvidia/nemotron-3-super-120b-a12b:free", "openrouter/z-ai/glm-5.2:free"]'
           # None of the above are in PR-Agent's static MAX_TOKENS table, so
           # every call fails without this — see .pr_agent.toml for detail.
           config.custom_model_max_tokens: '32000'
