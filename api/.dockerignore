@@ -1,0 +1,8 @@
+vendor/
+tmp/
+logs/
+tests/
+.git/
+.github/
+.env
+.env.deploy
