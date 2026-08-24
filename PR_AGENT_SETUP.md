@@ -100,6 +100,39 @@ It's tempting to assume PR-Agent's settings loader (Dynaconf) uses the common `S
 
 Get this wrong (e.g. `CONFIG__MODEL`, or a bare `custom_model_max_tokens` with no section prefix) and the setting silently doesn't apply — no error, it just never reaches the section Dynaconf expects, and you're back to the max-tokens failure above or an unpinned model.
 
+## A third gotcha: free-tier models can return unparseable YAML
+
+The two gotchas above fail *silently* (job green, no real comment). This one
+fails *loudly* — the action step exits non-zero — and it's not a dead slug, a
+bad key, or a config error. It's a **model-quality** failure.
+
+`auto_review` / `auto_describe` ask the model for structured YAML. Free-tier
+models sometimes return that YAML **wrapped in markdown code fences** (```
+```yaml … ``` ```) or **duplicated** in the same response. PR-Agent's
+`load_yaml` / `try_fix_yaml` can't extract parseable YAML from a fenced
+response → the parse returns `None` → the next line,
+`if 'review' not in data:` (in `pr_reviewer.py`), throws
+`TypeError: argument of type 'NoneType' is not iterable`.
+
+The kicker: **`retry_with_fallback_models` only retries on API-level
+failures** (429, timeout, 5xx) — **not** on a 200 whose body is unparseable.
+So once the primary model returns *a* response (HTTP 200) with bad content,
+the fallback list is **never consulted**. The parse failure is terminal, and
+with `propagate_tool_errors = true` (this repo's setting, deliberate so
+failures stay visible) any one tool's parse failure crashes the whole action
+step before the other tools run.
+
+Mitigation: pick the **strongest instruction-follower** as `model` (one that
+reliably returns raw YAML without fences), and keep the weaker / more
+rate-limited ones only in `fallback_models` for 429/timeout cover. Do **not**
+rely on `openrouter/free` auto-routing for the review tool — its pool
+includes models that fence-wrap, and you can't control which one a given run
+lands on. This repo pins GLM-5.2 as primary (the strongest of the three free
+options tried) with gemma + nemotron as API-level fallbacks — see
+`.pr_agent.toml`. As with every config change, verify real content actually
+posted (see [Verifying it actually works](#verifying-it-actually-works)),
+not just a green check.
+
 ## Why two config files (toml + env vars)
 
 `.pr_agent.toml` is the documented, readable mechanism — PR-Agent fetches it from the repo's **default branch** via the GitHub Contents API on every run. The env vars in the workflow file are a second, redundant copy of the same settings that apply on **any** branch immediately, including the branch that is introducing or editing this very configuration.

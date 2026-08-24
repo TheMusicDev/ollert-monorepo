@@ -58,15 +58,19 @@ jobs:
           # effect even on a branch/PR where .pr_agent.toml hasn't reached
           # the default branch yet (chicken-and-egg for a PR that modifies
           # this very file).
-          config.model: 'openrouter/google/gemma-4-26b-a4b-it:free'
-          # nemotron-3-nano-30b-a3b:free 404'd on PR #30 ("unavailable for
-          # free, paid slug nvidia/nemotron-3-nano-30b-a3b") — OpenRouter
-          # dropped that free slug. Replaced with two live free models so a
-          # transient 429 on the gemma primary (also happened on #30,
-          # shared free pool) doesn't cascade into a single dead fallback.
+          # GLM-5.2 is the primary: strongest instruction-follower of the
+          # three free models — least likely to wrap YAML output in markdown
+          # code fences (which crashed PR #31: nemotron returned fenced+duplicated
+          # YAML, PR-Agent's load_yaml couldn't parse it → TypeError →
+          # propagate_tool_errors crashed the action before auto_improve ran).
+          # Gemma worked for PR #30's review but 429'd on #31 (shared free pool),
+          # cascading into nemotron which produced the bad output. GLM-5.2
+          # primary avoids both failure modes: different free pool (no 429
+          # cascade), and reliably returns raw YAML (no fence-wrapping).
           # Verify the roster at https://openrouter.ai/collections/free-models
           # if these degrade too. Keep in sync with .pr_agent.toml.
-          config.fallback_models: '["openrouter/nvidia/nemotron-3-super-120b-a12b:free", "openrouter/z-ai/glm-5.2:free"]'
+          config.model: 'openrouter/z-ai/glm-5.2:free'
+          config.fallback_models: '["openrouter/google/gemma-4-26b-a4b-it:free", "openrouter/nvidia/nemotron-3-super-120b-a12b:free"]'
           # None of the above are in PR-Agent's static MAX_TOKENS table, so
           # every call fails without this — see .pr_agent.toml for detail.
           config.custom_model_max_tokens: '32000'
