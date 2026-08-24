@@ -1,0 +1,61 @@
+# Deploy the MCP server.
+#   kamal deploy -c config/deploy.mcp.yml
+#
+# One-time setup before first deploy: see DEPLOYMENT.md. The shared kamal-proxy
+# on negrita (host port 80) already routes *.2719.fyi by Host header — this
+# config just adds ollert-mcp.2719.fyi as another virtual host on it.
+
+service: ollert-mcp
+image: ollert-mcp
+
+registry:
+  server: localhost:5555
+  username: ""
+
+# Same bare-host + LAN-IP rationale as deploy.api.yml (kamal's Ruby SSH
+# resolver is flaky on .local; Net::SSH needs a bare hostname).
+servers:
+  - 192.168.1.20
+
+ssh:
+  user: amoreno
+  config: true
+
+# Build on negrita's own docker — native amd64, no cross-build, no local
+# docker needed on the laptop running kamal.
+builder:
+  arch: amd64
+  remote: ssh://amoreno@192.168.1.20
+  local: false
+  context: mcp
+  dockerfile: mcp/Dockerfile
+
+# Runtime env for the Bun container. Mirrors mcp/.env.example: clear for
+# non-secret/defaults, secret for project-ref-bearing URLs (kept out of git).
+env:
+  clear:
+    SUPABASE_JWT_AUD: authenticated
+    JWKS_CACHE_TTL: "900"
+    PORT: "8766"
+    # The CakePHP API's public origin. mcp/ forwards the caller's Bearer here.
+    API_BASE_URL: https://ollert-api.2719.fyi
+    # This server's own public URL (Cloudflare Tunnel domain) — the canonical
+    # URI claude.ai requests tokens for, and the `resource` in RFC 9728.
+    MCP_PUBLIC_BASE_URL: https://ollert-mcp.2719.fyi
+  secret:
+    - SUPABASE_URL
+    - SUPABASE_JWKS_URL
+    - SUPABASE_JWT_ISS
+    - SUPABASE_AS_METADATA_URL
+
+# Same shared kamal-proxy as api/web (single container, host port 80, routes
+# by Host header). cloudflared terminates TLS; no Let's Encrypt (ssl: false).
+# app_port is the Bun container's port; http_port 80 is the shared proxy.
+proxy:
+  host: ollert-mcp.2719.fyi
+  ssl: false
+  app_port: 8766
+  healthcheck:
+    path: /health
+  run:
+    http_port: 80

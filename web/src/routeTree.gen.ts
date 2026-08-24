@@ -16,6 +16,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
+import { Route as OauthConsentRouteImport } from './routes/oauth/consent'
 import { Route as AuthenticatedBoardsBoardIdRouteImport } from './routes/_authenticated/boards/$boardId'
 import { Route as AuthenticatedOrgsIndexRouteImport } from './routes/_authenticated/orgs/index'
 import { Route as AuthenticatedOrgsOrgIdIndexRouteImport } from './routes/_authenticated/orgs/$orgId/index'
@@ -55,6 +56,11 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OauthConsentRoute = OauthConsentRouteImport.update({
+  id: '/oauth/consent',
+  path: '/oauth/consent',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedBoardsBoardIdRoute =
   AuthenticatedBoardsBoardIdRouteImport.update({
     id: '/boards/$boardId',
@@ -86,6 +92,7 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/oauth/consent': typeof OauthConsentRoute
   '/boards/$boardId': typeof AuthenticatedBoardsBoardIdRoute
   '/orgs/': typeof AuthenticatedOrgsIndexRoute
   '/orgs/$orgId/members': typeof AuthenticatedOrgsOrgIdMembersRoute
@@ -98,6 +105,7 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/oauth/consent': typeof OauthConsentRoute
   '/boards/$boardId': typeof AuthenticatedBoardsBoardIdRoute
   '/orgs': typeof AuthenticatedOrgsIndexRoute
   '/orgs/$orgId/members': typeof AuthenticatedOrgsOrgIdMembersRoute
@@ -112,6 +120,7 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/oauth/consent': typeof OauthConsentRoute
   '/_authenticated/boards/$boardId': typeof AuthenticatedBoardsBoardIdRoute
   '/_authenticated/orgs/': typeof AuthenticatedOrgsIndexRoute
   '/_authenticated/orgs/$orgId/members': typeof AuthenticatedOrgsOrgIdMembersRoute
@@ -126,6 +135,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/profile'
     | '/auth/callback'
+    | '/oauth/consent'
     | '/boards/$boardId'
     | '/orgs/'
     | '/orgs/$orgId/members'
@@ -138,6 +148,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/profile'
     | '/auth/callback'
+    | '/oauth/consent'
     | '/boards/$boardId'
     | '/orgs'
     | '/orgs/$orgId/members'
@@ -151,6 +162,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/_authenticated/profile'
     | '/auth/callback'
+    | '/oauth/consent'
     | '/_authenticated/boards/$boardId'
     | '/_authenticated/orgs/'
     | '/_authenticated/orgs/$orgId/members'
@@ -164,6 +176,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   SignupRoute: typeof SignupRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
+  OauthConsentRoute: typeof OauthConsentRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -215,6 +228,13 @@ declare module '@tanstack/react-router' {
       path: '/auth/callback'
       fullPath: '/auth/callback'
       preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/oauth/consent': {
+      id: '/oauth/consent'
+      path: '/oauth/consent'
+      fullPath: '/oauth/consent'
+      preLoaderRoute: typeof OauthConsentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/boards/$boardId': {
@@ -275,6 +295,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   SignupRoute: SignupRoute,
   AuthCallbackRoute: AuthCallbackRoute,
+  OauthConsentRoute: OauthConsentRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
