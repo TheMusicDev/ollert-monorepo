@@ -1,0 +1,106 @@
+# Deploy the CakePHP API.
+#   kamal deploy -c config/deploy.api.yml
+#
+# One-time setup before first deploy: see DEPLOYMENT.md
+# (stand up registry:2 on negrita, boot the db accessory, fill .kamal/secrets,
+#  configure cloudflared: `*.2719.fyi -> http://localhost:80` wildcard).
+
+service: ollert-api
+image: ollert-api
+
+# Local registry running on negrita (registry:2). Everything (build, push,
+# pull) happens on negrita itself, so localhost:5555 is the right address
+# from both the remote builder and the deploy server. localhost is allowed
+# by docker without an insecure-registries entry.
+registry:
+  server: localhost:5555
+  username: ""
+
+# The single deploy target. Using the LAN IP (192.168.1.20) instead of the
+# negrita.local mDNS name — kamal's Ruby SSH resolver is flaky on .local.
+# Host is BARE (no user@): kamal's PortForwarding passes the servers string
+# straight to Net::SSH.start as the hostname, and getaddrinfo("user@host")
+# fails. User + key come from the ssh: block below.
+servers:
+  - 192.168.1.20
+
+# ssh: user supplies the login for both SSHKit (app commands) and Net::SSH
+# (port forwarding). config: true makes Net::SSH read ~/.ssh/config, where
+# `Host *` sets IdentityFile ~/.ssh/silica_ed25519 (the key isn't
+# default-named, so Net::SSH won't find it without this).
+ssh:
+  user: amoreno
+  config: true
+
+# Build on negrita's own docker — native arch, no cross-build, no local
+# docker needed on the laptop running kamal. Drop `remote`/`local: false`
+# if you run `kamal` from negrita itself (local build is fine then).
+builder:
+  arch: amd64                  # negrita is x86_64 (verified: `uname -m` on negrita)
+  remote: ssh://amoreno@192.168.1.20
+  local: false
+  context: api
+  dockerfile: api/Dockerfile
+
+# Runtime env for the CakePHP container. Mirrors api/.env.example's runtime
+# vars: clear for non-secret/defaults, secret for anything project-specific
+# or sensitive (kept in .kamal/secrets, out of git). See DEPLOYMENT.md.
+env:
+  clear:
+    APP_NAME: Ollert
+    DEBUG: "false"
+    APP_ENCODING: UTF-8
+    APP_DEFAULT_LOCALE: en_US
+    APP_DEFAULT_TIMEZONE: UTC
+    # Prod-required — prevents Host Header Injection. The API's own origin.
+    APP_FULL_BASE_URL: https://ollert-api.2719.fyi
+    SUPABASE_JWT_AUD: authenticated
+    JWKS_CACHE_TTL: "900"
+    # The web origin allowed to call the API (CORS allow-list).
+    CORS_ALLOWED_ORIGINS: https://ollert.2719.fyi
+  secret:
+    - DATABASE_URL
+    - SECURITY_SALT
+    # Project-ref is baked into these URLs; keep the full URL in secrets so
+    # the ref isn't sitting in a committed config file.
+    - SUPABASE_JWKS_URL
+    - SUPABASE_JWT_ISS
+
+# cloudflared terminates TLS at the Cloudflare edge and forwards HTTP to
+# this proxy. So no Let's Encrypt here (ssl: false). kamal-proxy is a SINGLE
+# shared container on host port 80 — it routes BOTH apps (api + web) by Host
+# header. So http_port is 80 for both configs, NOT a per-app port (a shared
+# kamal-proxy can only publish one port set; two different http_ports would
+# silently keep whichever the existing container already has). cloudflared's
+# `*.2719.fyi -> http://localhost:80` wildcard delivers both hostnames here.
+proxy:
+  host: ollert-api.2719.fyi
+  ssl: false
+  app_port: 80            # nginx inside the container listens on 80
+  # Healthcheck hits a static file in webroot (webroot/health). nginx serves
+  # it directly — never reaches php-fpm, so HostHeaderMiddleware (which 400s
+  # any request whose Host != ollert-api.2719.fyi, including kamal-proxy's
+  # internal healthcheck) never runs. /up or / would route to index.php and
+  # 400 on the healthcheck's Host header.
+  healthcheck:
+    path: /health
+  run:
+    http_port: 80
+
+# MariaDB, booted once and left alone across app deploys
+# (kamal accessory boot db -c config/deploy.api.yml). Persistent data lives
+# in the ollert-db named volume on negrita.
+accessories:
+  db:
+    image: mariadb:11.8
+    host: 192.168.1.20          # bare host; user comes from ssh: block above
+    port: "127.0.0.1:3306:3306"   # only reachable from negrita itself
+    env:
+      clear:
+        MYSQL_DATABASE: ollert
+        MYSQL_USER: ollert
+      secret:
+        - MYSQL_ROOT_PASSWORD
+        - MYSQL_PASSWORD
+    directories:
+      - ollert-db:/var/lib/mysql
