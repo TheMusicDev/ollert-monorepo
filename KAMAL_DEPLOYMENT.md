@@ -154,6 +154,15 @@ Two clean fixes (pick one):
    controller action returning 200, with the path explicitly whitelisted in
    the auth middleware AND the host-check middleware (host check runs before
    routing, so it must be bypassed by path too).
+3. **App-level host guard (no middleware layer)** — when the Host-header
+   guard lives in the app's own fetch handler rather than in middleware
+   (e.g. the MCP SDK's `hostHeaderValidationResponse` helper runs inside the
+   Bun `fetch` function, before routing), there's no middleware to whitelist
+   a path into. The fix is ordering: handle `/health` (return `ok`) **before**
+   invoking the guard, so the probe never reaches the Host check. Same effect
+   as a static webroot file, just in-process. Don't exempt anything that
+   returns non-trivial data — `/health` is safe because it only returns `ok`.
+   See `mcp/src/server.ts` (Ollert) for the pattern.
 
 Don't point the healthcheck at `/` if `/` goes through protected middleware.
 A 400 healthcheck is almost always middleware rejecting the internal

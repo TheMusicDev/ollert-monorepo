@@ -52,6 +52,8 @@ Do not run `git add`, `git commit`, `git push`, or anything that stages/commits/
 
 This file grows as we work. When you hit a non-obvious gotcha, get corrected on an approach, or notice a recurring preference, append a dated one-liner under **Learnings & Corrections** below — enough to say what and why, not a story. Don't duplicate anything already in the OKF bundle; link to it instead if relevant.
 
+**Two living runbooks to keep current alongside this file:** `KAMAL_DEPLOYMENT.md` (project-agnostic kamal gotcha log) and `PR_AGENT_SETUP.md` (project-agnostic pr-agent setup/gotcha log). When a new kamal or pr-agent gotcha is hit — a deploy failure pattern, a config footgun, a model-quality failure — update the relevant runbook in the same turn, not just the Learnings list below. These runbooks are the reusable part (Ollert-specific details stay in `DEPLOYMENT.md`); letting them drift stale defeats their purpose.
+
 ### Learnings & Corrections
 
 - 2026-08-20: `web/src/test/setup.ts` doesn't register global RTL cleanup (`vitest.config.ts` sets `globals: false`, so `@testing-library/react`'s auto-cleanup-via-global-`afterEach` never triggers) — any test file with more than one `render()` call needs its own `afterEach(() => cleanup())`, or add it once globally in `setup.ts`. Hit independently by 5 separate Section 2 FE branches before landing as a shared fix.
