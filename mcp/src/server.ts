@@ -83,13 +83,18 @@ export async function buildHandler(): Promise<(request: Request) => Promise<Resp
   );
 
   async function fetchHandler(request: Request): Promise<Response> {
-    // DNS-rebinding guard on every request (metadata routes included).
-    const hostViolation = hostHeaderValidationResponse(request, allowedHostnames);
-    if (hostViolation) return hostViolation;
-
     const url = new URL(request.url);
 
+    // Liveness probe — exempt from the Host-header guard below. kamal-proxy's
+    // healthcheck hits the container by docker-internal hostname/IP, whose Host
+    // header isn't in `allowedHostnames` and would 403 — same shape as api's
+    // nginx-serves-/health-statically bypass. Returns only "ok", no sensitive
+    // data, so DNS-rebinding protection adds nothing here.
     if (url.pathname === "/health") return new Response("ok", { headers: { "Content-Type": "text/plain" } });
+
+    // DNS-rebinding guard on every other request (metadata routes included).
+    const hostViolation = hostHeaderValidationResponse(request, allowedHostnames);
+    if (hostViolation) return hostViolation;
 
     // Serves /.well-known/oauth-protected-resource/mcp (+ the AS route, unused)
     // unauthenticated with permissive CORS + preflight handling.
