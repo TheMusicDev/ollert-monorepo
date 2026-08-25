@@ -38,7 +38,7 @@ Local shadow of the Supabase-authenticated identity. Created just-in-time on fir
 | max_boards_per_org | int, default 3 | quota: boards allowed in an org this user owns |
 | max_lists_per_board | int, default 5 | quota: lists allowed in a board this user owns (via org ownership) |
 | max_cards_per_board | int, default 100 | quota: cards allowed across all lists in a board this user owns |
-| is_admin | boolean, default false | admin flag (added 2026-08-24 for the admin feature, #20). Not a JWT flag — Supabase doesn't put `app_metadata` in the access token, so the API queries this column per admin request. First admin bootstrapped via env `ADMIN_UUID`. Admin mutates the four quota columns above on a per-user basis — see Quotas below. |
+| is_admin | boolean, default false | admin flag (added 2026-08-24 for the admin feature, #20). Not stored in the JWT — the API resolves the `users` row from the JWT `sub` per request and checks this column, so promote/demote takes effect on the next request (a JWT-embedded flag would be stale for the token's lifetime). First admin bootstrapped via env `ADMIN_UUID`. Admin mutates the four quota columns above on a per-user basis — see Quotas below. |
 
 ## organizations
 

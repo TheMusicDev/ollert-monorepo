@@ -28,7 +28,7 @@ Three features that were deferred or blocked become cheap once the data is in Po
 
 * **Storage → Supabase Storage** (S3-compatible, switchable provider). Closes the attachments storage question — supersedes the local-FS / self-hosted RustFS / Cloudflare R2 options. Unblocks attachments (still needs upload/scan + quotas before shipping).
 * **Realtime → Supabase Realtime** (WAL-based, works once data is in Postgres). Replaces the deferred Soketi (Pusher-protocol relay) plan — no extra infra to run. Biggest single UX gap vs real Trello. See [Roadmap](roadmap.md#deferred-post-mvp).
-* **Search → Postgres `FULLTEXT` + pgvector**, not MySQL FULLTEXT or Algolia. Gates on the Postgres migration. Supersedes the Algolia free-tier idea.
+* **Search → PostgreSQL full-text search (`tsvector`/`tsquery` + GIN or GiST indexes) for keyword search, and `pgvector` for vector storage + similarity search (semantic)**, not MySQL FULLTEXT or Algolia. Gates on the Postgres migration. Supersedes the Algolia free-tier idea.
 
 # What stays
 
