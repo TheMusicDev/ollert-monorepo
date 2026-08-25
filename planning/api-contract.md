@@ -54,7 +54,7 @@ Admin endpoints (feature #20, moved up 2026-08-24). Gated: the caller's resolved
 * `GET /api/admin/users` - list all users, paginated (same `?page=`/`?limit=` shape, `{ data, meta }` envelope — see Pagination below). Returns each user's `id`, `email`, `display_name`, the four quota columns, and `is_admin`.
 * `PATCH /api/admin/users/:id` - set per-user quota overrides (`max_orgs`/`max_boards_per_org`/`max_lists_per_board`/`max_cards_per_board`) and `is_admin` (promote/demote other admins). Overrides are the only mechanism to raise a limit above the floor — no global raise (see [Data Model](data-model.md#quotas)). Partial PATCH: only sent fields update.
 
-Pagination of the user list is settled — same `?page=`/`?limit=` shape with `{ data, meta }` envelope (see Pagination below). Exact field set and partial-PATCH semantics finalized when the admin branch implements this — same TBD-then-settled pattern `is_owner` used (see [log.md](log.md)).
+Pagination of the user list is settled — same `?page=`/`?limit=` shape with `{ data, meta }` envelope (see Pagination below).
 
 # Conventions
 
