@@ -13,6 +13,8 @@ MVP entities: `users`, `organizations`, `org_members`, `boards`, `lists`, `cards
 
 All primary keys (and the foreign keys that reference them) are UUIDs — MySQL `char(36)`, `cakephp/migrations` column type `uuid`. CakePHP's ORM generates the UUID automatically on save when the primary key column type is `uuid` and no value was set (`Text::uuid()` under the hood) — no extra plugin or manual `beforeSave` hook needed. `users.supabase_uid` stays a separate UUID column (the Supabase `sub` claim) from `users.id` (the local PK) — the two are unrelated identifiers pointing at the same person.
 
+> **Planned move (decided 2026-08-24, not started):** this MySQL schema is being relocated to Supabase hosted Postgres as part of the all-in-Supabase overhaul (UUIDs port cleanly; MySQL-specific types/indexes get Postgres equivalents). The schema below keeps describing MySQL until the migration branch executes the swap — see [Supabase Migration](supabase-migration.md) and [log.md](log.md) 2026-08-24 (cont.). The `is_admin` column and the per-user quota-override mechanism added 2026-08-24 survive the move unchanged (same column shape).
+
 ## Field constraints
 
 All `name`/`title` fields (`organizations.name`, `boards.title`, `lists.title`, `cards.title`) are `varchar(255)`, required, no uniqueness constraint — two boards named "Sprint" is fine, this isn't a namespace. `cards.description` is `text`, nullable, unbounded. `users.email`/`display_name` follow the same `varchar(255)` sizing.
@@ -36,6 +38,7 @@ Local shadow of the Supabase-authenticated identity. Created just-in-time on fir
 | max_boards_per_org | int, default 3 | quota: boards allowed in an org this user owns |
 | max_lists_per_board | int, default 5 | quota: lists allowed in a board this user owns (via org ownership) |
 | max_cards_per_board | int, default 100 | quota: cards allowed across all lists in a board this user owns |
+| is_admin | boolean, default false | admin flag (added 2026-08-24 for the admin feature, #20). Not a JWT flag — Supabase doesn't put `app_metadata` in the access token, so the API queries this column per admin request. First admin bootstrapped via env `ADMIN_UUID`. Admin mutates the four quota columns above on a per-user basis — see Quotas below. |
 
 ## organizations
 
@@ -75,7 +78,7 @@ Four limits, all columns on `users`, all enforced app-side (not DB constraints) 
 * **`max_lists_per_board`** (default `5`): checked when any org member creates a list — `count(lists where board_id = board.id) < board.org.owner.max_lists_per_board`. Checked against the *org owner's* column regardless of who's creating the list, same pattern as board creation.
 * **`max_cards_per_board`** (default `100`): checked when any org member creates a card — `count(cards joined lists where lists.board_id = board.id) < board.org.owner.max_cards_per_board`. Counted across the whole board (all its lists), not per-list.
 
-All four default low; raising them (e.g. for a paid tier) is just updating the column — no schema change. Quota-exceeded creation attempts fail; see the [API contract](api-contract.md#conventions) for the error shape.
+All four default low and stay as the floor — **no global raise, ever** (decided 2026-08-24). Per-user overrides via the admin feature (#20, `is_admin` on `users`) are the only mechanism to raise a limit for a specific user; the admin mutates the four columns above per row. Quota-exceeded creation attempts fail; see the [API contract](api-contract.md#conventions) for the error shape.
 
 ## lists
 Columns on a board (e.g. "To Do", "In Progress", "Done").
