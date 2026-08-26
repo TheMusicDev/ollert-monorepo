@@ -35,12 +35,16 @@ Org resource shape adds one server-computed field beyond the raw `organizations`
 * `DELETE /api/boards/:id` - any org member (no per-board owner in v1); soft delete (see [Data Model](data-model.md))
 
 ## Lists
+* `GET /api/boards/:id/lists` - lists in the board, paginated (any org member), ordered by `position` ASC
 * `POST /api/boards/:id/lists` - create list; 422 if the board owner is at their `max_lists_per_board` quota
+* `GET /api/lists/:id` - list detail, includes its cards nested, **not paginated** (same exception as `GET /api/boards/:id` — a list view needs all its cards to render the column), ordered by `position` ASC
 * `PATCH /api/lists/:id` - rename, or update `position` for reordering
 * `DELETE /api/lists/:id` - soft delete (see [Data Model](data-model.md))
 
 ## Cards
+* `GET /api/lists/:id/cards` - cards in the list, paginated (any org member), ordered by `position` ASC
 * `POST /api/lists/:id/cards` - create card; 422 if the board owner is at their `max_cards_per_board` quota
+* `GET /api/cards/:id` - card detail (any org member)
 * `PATCH /api/cards/:id` - update title/description/due_date/position (including moving to a different `list_id`)
 * `DELETE /api/cards/:id` - soft delete (see [Data Model](data-model.md))
 
@@ -74,7 +78,7 @@ Per-user quotas (`max_orgs`, `max_boards_per_org`, `max_lists_per_board`, `max_c
     "meta": { "page": 1, "limit": 20, "total": 42, "totalPages": 3 }
   }
   ```
-* **Exception**: `GET /api/boards/:id` returns its lists and cards nested and unpaginated. A kanban board has to render (and support drag-drop across) its full set of lists/cards at once — paginating the nested arrays would mean a card could get dropped onto a list the client hasn't loaded yet. `max_lists_per_board`/`max_cards_per_board` bound this payload's worst case instead.
+* **Exception**: `GET /api/boards/:id` returns its lists and cards nested and unpaginated, and `GET /api/lists/:id` returns its cards nested and unpaginated. A kanban board has to render (and support drag-drop across) its full set of lists/cards at once, and a list view needs all its cards to render the column — paginating the nested arrays would mean a card could get dropped onto a list the client hasn't loaded yet. `max_lists_per_board`/`max_cards_per_board` bound these payloads' worst case instead.
 
 ## Error response shape
 
