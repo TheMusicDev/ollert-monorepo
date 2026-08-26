@@ -42,6 +42,12 @@ class ListsControllerTest extends TestCase
         'app.OrgMembers',
         'app.Boards',
         'app.Lists',
+        // `view` contains `Cards` (nested, unpaginated) — the table schema
+        // must exist for that contain to query, even though Standard Board's
+        // single list (`...000008`) has no card rows in `CardsFixture` (they
+        // all live on Acme Org's "To Do" list), so the nested `cards` array
+        // is empty here.
+        'app.Cards',
     ];
 
     private const ISS = 'https://test-project.supabase.co/auth/v1';
@@ -103,6 +109,69 @@ class ListsControllerTest extends TestCase
         }
 
         parent::tearDown();
+    }
+
+    // --- index / view (reads) --------------------------------------------
+
+    public function testIndexReturnsPaginatedListsForBoardMember(): void
+    {
+        $this->authenticateAs(self::MEMBER_SUB, self::MEMBER_EMAIL);
+
+        $this->get('/api/boards/' . self::STANDARD_BOARD_ID . '/lists');
+
+        $this->assertResponseOk();
+        $body = $this->decodedBody();
+        // Standard Board has exactly one list (ListsFixture: `...000008`).
+        $this->assertSame(1, $body['meta']['total']);
+        $this->assertCount(1, $body['data']);
+        $this->assertSame('To Do', $body['data'][0]['title']);
+        $this->assertSame(self::STANDARD_LIST_ID, $body['data'][0]['id']);
+    }
+
+    public function testViewReturnsListWithNestedCards(): void
+    {
+        $this->authenticateAs(self::MEMBER_SUB, self::MEMBER_EMAIL);
+
+        $this->get('/api/lists/' . self::STANDARD_LIST_ID);
+
+        $this->assertResponseOk();
+        $body = $this->decodedBody();
+        $this->assertSame('To Do', $body['title']);
+        $this->assertSame(self::STANDARD_BOARD_ID, $body['board_id']);
+        // Standard Board's list has no card rows (see $fixtures comment), so
+        // the nested `cards` key is an empty array — proving the contain
+        // wired in `view` resolves without a separate request.
+        $this->assertSame([], $body['cards']);
+    }
+
+    public function testIndexIsForbiddenForNonOrgMember(): void
+    {
+        $this->authenticateAs(self::OUTSIDER_SUB, self::OUTSIDER_EMAIL);
+
+        $this->get('/api/boards/' . self::STANDARD_BOARD_ID . '/lists');
+
+        $this->assertResponseCode(403);
+        $this->assertSame('not_org_member', $this->decodedBody()['error']['code']);
+    }
+
+    public function testViewOfTrashedListReturns404(): void
+    {
+        $this->authenticateAs(self::MEMBER_SUB, self::MEMBER_EMAIL);
+
+        // `...000009` is soft-deleted in ListsFixture; Muffin/Trash's
+        // default finder filters it out before the org-membership check,
+        // so this 404s as `not_found` regardless of the caller's org.
+        $this->get('/api/lists/60000000-0000-4000-8000-000000000009');
+
+        $this->assertResponseCode(404);
+        $this->assertSame('not_found', $this->decodedBody()['error']['code']);
+    }
+
+    public function testIndexWithoutTokenIsUnauthorized(): void
+    {
+        $this->get('/api/boards/' . self::STANDARD_BOARD_ID . '/lists');
+
+        $this->assertResponseCode(401);
     }
 
     // --- add ------------------------------------------------------------

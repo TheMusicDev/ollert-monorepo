@@ -146,6 +146,73 @@ class CardsControllerTest extends TestCase
         $_SERVER[$key] = $value;
     }
 
+    // --- index / view (reads) -------------------------------------------
+
+    public function testIndexReturnsPaginatedCardsForListMember(): void
+    {
+        $this->actingAs(self::MEMBER_SUB, self::MEMBER_EMAIL);
+
+        $this->get('/api/lists/' . self::LIST_TODO . '/cards');
+
+        $this->assertResponseOk();
+        $body = $this->decodeBody();
+        // "To Do" (`...000001`) has two active cards (Card A, Card B) per
+        // CardsFixture, ordered by position ASC.
+        $this->assertSame(2, $body['meta']['total']);
+        $this->assertCount(2, $body['data']);
+        $this->assertSame('Card A', $body['data'][0]['title']);
+        $this->assertSame('Card B', $body['data'][1]['title']);
+    }
+
+    public function testViewReturnsCard(): void
+    {
+        $this->actingAs(self::MEMBER_SUB, self::MEMBER_EMAIL);
+
+        $this->get('/api/cards/' . self::CARD_ONE);
+
+        $this->assertResponseOk();
+        $body = $this->decodeBody();
+        $this->assertSame('Card A', $body['title']);
+        $this->assertSame(self::LIST_TODO, $body['list_id']);
+        $this->assertSame(self::CARD_ONE, $body['id']);
+    }
+
+    public function testIndexIsForbiddenForNonMember(): void
+    {
+        $this->actingAs(self::OUTSIDER_SUB, self::OUTSIDER_EMAIL);
+
+        $this->get('/api/lists/' . self::LIST_TODO . '/cards');
+
+        $this->assertResponseCode(403);
+        $this->assertSame('not_org_member', $this->decodeBody()['error']['code']);
+    }
+
+    public function testIndexReturns404ForTrashedList(): void
+    {
+        $this->actingAs(self::MEMBER_SUB, self::MEMBER_EMAIL);
+
+        $this->get('/api/lists/' . self::LIST_TRASHED . '/cards');
+
+        $this->assertResponseCode(404);
+        $this->assertSame('not_found', $this->decodeBody()['error']['code']);
+    }
+
+    public function testViewOfTrashedCardReturns404(): void
+    {
+        $this->actingAs(self::MEMBER_SUB, self::MEMBER_EMAIL);
+
+        $this->get('/api/cards/' . self::CARD_TRASHED);
+
+        $this->assertResponseCode(404);
+    }
+
+    public function testViewWithoutTokenIsUnauthorized(): void
+    {
+        $this->get('/api/cards/' . self::CARD_ONE);
+
+        $this->assertResponseCode(401);
+    }
+
     // --- add -----------------------------------------------------------
 
     public function testAddCreatesCardForOrgMember(): void

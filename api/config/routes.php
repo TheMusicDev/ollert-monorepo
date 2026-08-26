@@ -119,14 +119,20 @@ return function (RouteBuilder $routes): void {
         $builder->delete('/boards/{id}', ['controller' => 'Boards', 'action' => 'delete'])->setPass(['id']);
 
         // Lists
+        $builder->get('/boards/{id}/lists', ['controller' => 'Lists', 'action' => 'index'])
+            ->setPass(['id']);
         $builder->post('/boards/{id}/lists', ['controller' => 'Lists', 'action' => 'add'])
             ->setPass(['id']);
+        $builder->get('/lists/{id}', ['controller' => 'Lists', 'action' => 'view'])->setPass(['id']);
         $builder->patch('/lists/{id}', ['controller' => 'Lists', 'action' => 'edit'])->setPass(['id']);
         $builder->delete('/lists/{id}', ['controller' => 'Lists', 'action' => 'delete'])->setPass(['id']);
 
         // Cards
+        $builder->get('/lists/{id}/cards', ['controller' => 'Cards', 'action' => 'index'])
+            ->setPass(['id']);
         $builder->post('/lists/{id}/cards', ['controller' => 'Cards', 'action' => 'add'])
             ->setPass(['id']);
+        $builder->get('/cards/{id}', ['controller' => 'Cards', 'action' => 'view'])->setPass(['id']);
         $builder->patch('/cards/{id}', ['controller' => 'Cards', 'action' => 'edit'])->setPass(['id']);
         $builder->delete('/cards/{id}', ['controller' => 'Cards', 'action' => 'delete'])->setPass(['id']);
     });
