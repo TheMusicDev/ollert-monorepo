@@ -5,13 +5,13 @@
     "": {
       "name": "mcp",
       "dependencies": {
-        "@modelcontextprotocol/server": "latest",
-        "jose": "^6.1.0",
-        "zod": "^4.2.0",
+        "@modelcontextprotocol/server": "2.0.0",
+        "jose": "6.2.10",
+        "zod": "4.4.3",
       },
       "devDependencies": {
-        "@types/bun": "latest",
-        "typescript": "^6.0.2",
+        "@types/bun": "1.4.0",
+        "typescript": "6.0.3",
       },
     },
   },

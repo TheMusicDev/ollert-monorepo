@@ -14,6 +14,7 @@ use Cake\Database\Driver\Sqlite;
 use Cake\Datasource\EntityInterface;
 use Cake\Http\Exception\NotFoundException;
 use Cake\Http\Response;
+use Cake\ORM\Query\SelectQuery;
 
 /**
  * `/api/boards/:id/lists` and `/api/lists/:id` (planning/api-contract.md#lists):
@@ -24,6 +25,8 @@ use Cake\Http\Response;
  *   board bootstraps `position` to `1.0`
  *   (planning/data-model.md, fractional-indexing note); every list after
  *   that is appended at `max(position) + 1.0`.
+ * - `index`/`view` - read: paginated lists under a board, and a single list
+ *   with its cards nested (unpaginated). Any org member.
  * - `edit` - partial update: rename (`title`), reposition (`position`), or
  *   both in the same request. Only the keys actually present in the request
  *   body are touched — a `position`-only PATCH must not clobber `title`,
@@ -51,7 +54,72 @@ class ListsController extends AppController
 
         $this->orgAuthorizationService = new OrgAuthorizationService();
         $this->quotaService = new QuotaService();
-        $this->autoRender = false;
+
+        // `index`/`view` render through JsonView + `serialize` (paginated
+        // `{data,meta}` envelope / nested entity), mirroring BoardsController.
+        // The existing `add`/`edit`/`delete` return a Response from
+        // `jsonResponse()`, which short-circuits rendering regardless of
+        // `autoRender`, so dropping `autoRender = false` is safe for them.
+        $this->loadComponent('Pagination');
+        $this->viewBuilder()->setClassName('Json');
+        $this->viewBuilder()->setOption(
+            'jsonOptions',
+            JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE,
+        );
+    }
+
+    /**
+     * `GET /api/boards/:id/lists` — lists under a board, paginated
+     * (`{data,meta}` envelope, planning/api-contract.md#pagination). Any org
+     * member. Ordered by `position` ASC.
+     *
+     * @param string $boardId The board's `id` (from the route).
+     * @return void
+     */
+    public function index(string $boardId): void
+    {
+        $this->request->allowMethod('GET');
+
+        $identity = $this->identity();
+        $board = $this->findBoardOrFail($boardId);
+        $this->assertOrgMember($identity, $board->org_id);
+
+        /** @var \App\Model\Table\ListsTable $listsTable */
+        $listsTable = $this->fetchTable('Lists');
+        $query = $listsTable->find()
+            ->where(['board_id' => $board->id])
+            ->orderBy(['position' => 'ASC']);
+        $result = $this->Pagination->paginate($query);
+
+        $this->set($result);
+        $this->viewBuilder()->setOption('serialize', ['data', 'meta']);
+    }
+
+    /**
+     * `GET /api/lists/:id` — list detail with cards nested, unpaginated
+     * (planning/api-contract.md#pagination — a list view needs all its cards
+     * to render the column). Any org member. Cards ordered by `position` ASC.
+     *
+     * @param string $id The list's `id` (from the route).
+     * @return void
+     */
+    public function view(string $id): void
+    {
+        $this->request->allowMethod('GET');
+
+        $identity = $this->identity();
+        /** @var \App\Model\Entity\BoardList $list */
+        $list = $this->fetchTable('Lists')->find()
+            ->where(['Lists.id' => $id])
+            ->contain([
+                'Boards' => ['Organizations'],
+                'Cards' => fn(SelectQuery $q): SelectQuery => $q->orderBy(['Cards.position' => 'ASC']),
+            ])
+            ->firstOrFail();
+        $this->assertOrgMember($identity, $list->board->org_id);
+
+        $this->set('list', $list);
+        $this->viewBuilder()->setOption('serialize', 'list');
     }
 
     /**

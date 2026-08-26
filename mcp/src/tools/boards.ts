@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/server";
 import { apiFetch } from "#/apiClient";
 import type { Board, Paginated } from "#/types";
+import { pagination } from "#/tools/pagination";
 import { run } from "#/tools/result";
 
 export function registerBoards(server: McpServer, bearer: string): void {
@@ -16,6 +17,7 @@ export function registerBoards(server: McpServer, bearer: string): void {
         page: z.number().int().positive().optional(),
         limit: z.number().int().positive().max(100).optional(),
       }),
+      annotations: { readOnlyHint: true },
     },
     async (a) => run(() => apiFetch<Paginated<Board>>(`/api/orgs/${a.org_id}/boards${pagination(a)}`, bearer)),
   );
@@ -24,9 +26,9 @@ export function registerBoards(server: McpServer, bearer: string): void {
     "create_board",
     {
       description: "Create a board under an org (org owner only; 422 if over max_boards_per_org).",
-      inputSchema: z.object({ org_id: z.string().uuid(), name: z.string().min(1) }),
+      inputSchema: z.object({ org_id: z.string().uuid(), title: z.string().min(1) }),
     },
-    async (a) => run(() => apiFetch<Board>(`/api/orgs/${a.org_id}/boards`, bearer, { method: "POST", body: JSON.stringify({ name: a.name }) })),
+    async (a) => run(() => apiFetch<Board>(`/api/orgs/${a.org_id}/boards`, bearer, { method: "POST", body: JSON.stringify({ title: a.title }) })),
   );
 
   server.registerTool(
@@ -34,6 +36,7 @@ export function registerBoards(server: McpServer, bearer: string): void {
     {
       description: "Get a board with its lists + cards nested (unpaginated — full kanban).",
       inputSchema: z.object({ id: z.string().uuid() }),
+      annotations: { readOnlyHint: true },
     },
     async (a) => run(() => apiFetch<Board>(`/api/boards/${a.id}`, bearer)),
   );
@@ -42,9 +45,9 @@ export function registerBoards(server: McpServer, bearer: string): void {
     "update_board",
     {
       description: "Rename a board (any org member).",
-      inputSchema: z.object({ id: z.string().uuid(), name: z.string().min(1) }),
+      inputSchema: z.object({ id: z.string().uuid(), title: z.string().min(1) }),
     },
-    async (a) => run(() => apiFetch<Board>(`/api/boards/${a.id}`, bearer, { method: "PATCH", body: JSON.stringify({ name: a.name }) })),
+    async (a) => run(() => apiFetch<Board>(`/api/boards/${a.id}`, bearer, { method: "PATCH", body: JSON.stringify({ title: a.title }) })),
   );
 
   server.registerTool(
@@ -52,15 +55,8 @@ export function registerBoards(server: McpServer, bearer: string): void {
     {
       description: "Delete a board (any org member; soft delete).",
       inputSchema: z.object({ id: z.string().uuid() }),
+      annotations: { destructiveHint: true },
     },
     async (a) => run(() => apiFetch<{ id: string }>(`/api/boards/${a.id}`, bearer, { method: "DELETE" })),
   );
-}
-
-function pagination(p: { page?: number; limit?: number }): string {
-  const sp = new URLSearchParams();
-  if (p.page !== undefined) sp.set("page", String(p.page));
-  if (p.limit !== undefined) sp.set("limit", String(p.limit));
-  const s = sp.toString();
-  return s ? `?${s}` : "";
 }

@@ -134,6 +134,31 @@ options tried) with gemma + nemotron as API-level fallbacks — see
 posted (see [Verifying it actually works](#verifying-it-actually-works)),
 not just a green check.
 
+A fourth failure mode, also loud (non-zero exit): **transient provider
+failures** — either a timeout (`litellm.Timeout: OpenrouterException - error
+code: 504` after ~130s) or an upstream rate limit
+(`litellm.RateLimitError: ... 429 ... temporarily rate-limited upstream`,
+`limit_source: upstream_provider_shared_pool`). Both hit on PR #33 with
+GLM-5.2 primary. `retry_with_fallback_models` *does* engage — it walks the
+fallback list (gemma → nemotron here) — and the review tool can even succeed
+on a fallback (nemotron returned clean, valid YAML), but with
+`propagate_tool_errors = true` (this repo's setting) any *one* of the three
+auto-actions (`/describe`, `/review`, `/improve`) exhausting all models
+crashes the whole step *before* it publishes, so nothing posts despite the
+partial success.
+
+The 429 case is the harder one: a free-tier `:free` shared pool can be
+rate-limited across **all** the free fallback models in the same window, so
+an immediate re-run hits the same wall — the "re-run usually succeeds next
+time" advice for the 504 case does not reliably hold. Mitigations, in order:
+wait a few minutes for the upstream pool to recover before re-triggering;
+add your own OpenRouter provider key (BYOK, per the 429 remedy hint) to
+escape the shared pool; or drop `propagate_tool_errors` to `false` so a
+single tool's failure doesn't kill the step (trade-off: failures go quiet,
+which is exactly what the first two gotchas warned against — only do this if
+you have another signal that the run actually produced output). Don't
+mistake either failure for a parse or auth failure.
+
 ## Why two config files (toml + env vars)
 
 `.pr_agent.toml` is the documented, readable mechanism — PR-Agent fetches it from the repo's **default branch** via the GitHub Contents API on every run. The env vars in the workflow file are a second, redundant copy of the same settings that apply on **any** branch immediately, including the branch that is introducing or editing this very configuration.

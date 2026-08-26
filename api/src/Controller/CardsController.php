@@ -16,7 +16,8 @@ use Cake\Http\Response;
 use Cake\ORM\Query\SelectQuery;
 
 /**
- * `POST /api/lists/:id/cards`, `PATCH /api/cards/:id`, `DELETE /api/cards/:id`
+ * `GET /api/lists/:id/cards`, `GET /api/cards/:id`, `POST /api/lists/:id/cards`,
+ * `PATCH /api/cards/:id`, `DELETE /api/cards/:id`
  * (planning/api-contract.md#cards, be-tasks.md `feat/api-cards`).
  *
  * Cards have no direct `org_id` — access control walks
@@ -39,6 +40,74 @@ class CardsController extends AppController
      * @var \App\Service\OrgAuthorizationService|null
      */
     private ?OrgAuthorizationService $orgAuthorization = null;
+
+    /**
+     * `index`/`view` render through JsonView + `serialize` (paginated
+     * `{data,meta}` envelope / single entity), mirroring BoardsController.
+     * The existing `add`/`edit`/`delete` return a Response from
+     * `jsonResponse()` (which sets `autoRender = false` itself), so the
+     * `Json` view class + `Pagination` component added here don't affect them.
+     *
+     * @return void
+     */
+    public function initialize(): void
+    {
+        parent::initialize();
+
+        $this->loadComponent('Pagination');
+        $this->viewBuilder()->setClassName('Json');
+        // Matches `jsonResponse()`'s flags (incl. `JSON_PRESERVE_ZERO_FRACTION`
+        // for whole-number `position`) so the serialize path is byte-identical
+        // to the manual path for the same entity.
+        $this->viewBuilder()->setOption(
+            'jsonOptions',
+            JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
+                | JSON_INVALID_UTF8_SUBSTITUTE | JSON_PRESERVE_ZERO_FRACTION,
+        );
+    }
+
+    /**
+     * `GET /api/lists/:id/cards` — cards under a list, paginated
+     * (`{data,meta}` envelope, planning/api-contract.md#pagination). Any org
+     * member. Ordered by `position` ASC.
+     *
+     * @param string $listId The parent list's id (route `:id`).
+     * @return void
+     */
+    public function index(string $listId): void
+    {
+        $this->request->allowMethod('GET');
+
+        $userId = $this->currentUserId();
+        $list = $this->findListWithBoardAndOrg($listId);
+        $this->assertOrgMember($userId, $list->board->org_id);
+
+        $query = $this->fetchCardsTable()->find()
+            ->where(['list_id' => $list->id])
+            ->orderBy(['position' => 'ASC']);
+        $result = $this->Pagination->paginate($query);
+
+        $this->set($result);
+        $this->viewBuilder()->setOption('serialize', ['data', 'meta']);
+    }
+
+    /**
+     * `GET /api/cards/:id` — card detail. Any member of the card's org.
+     *
+     * @param string $id The card's id.
+     * @return void
+     */
+    public function view(string $id): void
+    {
+        $this->request->allowMethod('GET');
+
+        $userId = $this->currentUserId();
+        $card = $this->findCardWithListBoardAndOrg($id);
+        $this->assertOrgMember($userId, $card->list->board->org_id);
+
+        $this->set('card', $card);
+        $this->viewBuilder()->setOption('serialize', 'card');
+    }
 
     /**
      * `POST /api/lists/:id/cards` — create a card under a list. Any org
