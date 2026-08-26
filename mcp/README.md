@@ -4,7 +4,7 @@ Exposes [Ollert](../)’s REST API ([`planning/api-contract.md`](../planning/api
 
 It is a thin **resource server**: it validates the caller’s Supabase Bearer JWT against the same JWKS the CakePHP API uses (mirroring `api/src/Middleware/AuthMiddleware.php`), then **forwards that same token unchanged** to the API on every tool call. No business logic, authorization, quotas, or token issuance/storage live here — the API owns all of that. Design and deployment: [`planning/mcp-server.md`](../planning/mcp-server.md). Live at `ollert-mcp.2719.fyi` behind the shared kamal-proxy.
 
-## Tools (22)
+## Tools (23)
 
 Reads carry `readOnlyHint`; deletes carry `destructiveHint`; creates/updates carry no annotation (MCP defaults are correct). See [`planning/api-contract.md`](../planning/api-contract.md) for the sole authoritative request/response shapes, pagination, and error codes — tool wrappers are 1:1 with it.
 

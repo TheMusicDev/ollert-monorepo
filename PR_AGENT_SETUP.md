@@ -134,6 +134,17 @@ options tried) with gemma + nemotron as API-level fallbacks — see
 posted (see [Verifying it actually works](#verifying-it-actually-works)),
 not just a green check.
 
+A fourth failure mode, also loud (non-zero exit): the primary model **times
+out at the provider** — `litellm.Timeout: OpenrouterException - error code:
+504` after ~130s — and `retry_with_fallback_models` either exhausts its
+retries on the same 504 or the fallback models 504 too. This is distinct from
+the parse gotcha (the call *did* fail, the wrapper *did* engage, it just
+couldn't recover). Hit on PR #33 (a 15-file, ~400-line PR) with GLM-5.2
+primary. It's transient — re-running the workflow or pushing a trivial
+retrigger (e.g. `/review` comment, if `issue_comment` is wired) usually
+succeeds next run; no config change needed. Don't mistake it for a parse or
+auth failure.
+
 ## Why two config files (toml + env vars)
 
 `.pr_agent.toml` is the documented, readable mechanism — PR-Agent fetches it from the repo's **default branch** via the GitHub Contents API on every run. The env vars in the workflow file are a second, redundant copy of the same settings that apply on **any** branch immediately, including the branch that is introducing or editing this very configuration.
