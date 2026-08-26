@@ -1,8 +1,8 @@
 import type { ComponentType, ReactNode } from 'react'
 import type * as TanstackReactRouter from '@tanstack/react-router'
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useAuth } from '@/lib/auth-context'
 
@@ -72,10 +72,6 @@ describe('AuthCallbackPage', () => {
       },
     )
     window.history.pushState({}, '', '/auth/callback')
-  })
-
-  afterEach(() => {
-    cleanup()
   })
 
   it('shows a verifying state before any event or error arrives', () => {

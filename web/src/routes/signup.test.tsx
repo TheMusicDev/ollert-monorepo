@@ -1,8 +1,8 @@
 import type { ComponentType, ReactNode } from 'react'
 import type * as TanstackReactRouter from '@tanstack/react-router'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useAuth } from '@/lib/auth-context'
 
@@ -54,10 +54,6 @@ function mockAuth(overrides: Partial<ReturnType<typeof useAuth>> = {}) {
 describe('SignupPage', () => {
   beforeEach(() => {
     navigateMock.mockClear()
-  })
-
-  afterEach(() => {
-    cleanup()
   })
 
   it('renders email/password/confirm fields and a link back to login', () => {

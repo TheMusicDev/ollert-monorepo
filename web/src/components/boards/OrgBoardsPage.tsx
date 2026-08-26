@@ -48,29 +48,6 @@ export function OrgBoardsPage({ orgId }: { orgId: string }) {
   const orgRequestRef = useRef(0)
   const boardsRequestRef = useRef(0)
 
-  // Reset pagination and any open create/rename/delete dialog when the org
-  // changes, so state retained from a previous org doesn't get requested
-  // or submitted against the new one — a stale rename/delete target holds
-  // a board id that belongs to the old org, so leaving it open would let a
-  // submit rename/delete a board in the wrong org. Adjusting state during
-  // render (rather than in an effect keyed on orgId) means the reset lands
-  // before loadBoards' effect fires, so we never issue a wasted fetch for
-  // the old page against the new org. Bumping the generations here too —
-  // rather than only inside loadOrg/loadBoards — closes a narrow race:
-  // without this, a request for the previous org that resolves after this
-  // render commits but before the replacement effect runs would still
-  // carry the "current" generation number and pass the staleness check.
-  const [prevOrgId, setPrevOrgId] = useState(orgId)
-  if (orgId !== prevOrgId) {
-    setPrevOrgId(orgId)
-    setPage(1)
-    setCreateOpen(false)
-    setRenameTarget(null)
-    setDeleteTarget(null)
-    orgRequestRef.current++
-    boardsRequestRef.current++
-  }
-
   // Same reasoning for page changes on their own (pagination clicks): bump
   // the boards generation synchronously so an in-flight request for the
   // previous page can't win a race against the replacement effect.

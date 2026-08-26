@@ -32,10 +32,13 @@ function invalidToken(detail: string): never {
 export async function verifyAccessToken(
   raw: string,
   expectedAud: string = config.jwtAud,
+  // Injected for tests (a local public key); production leaves it at the
+  // default remote JWKS so no test ever hits Supabase over HTTP.
+  keys: Parameters<typeof jwtVerify>[1] = jwks,
 ): Promise<AuthInfo> {
   let payload: JWTPayload;
   try {
-    ({ payload } = await jwtVerify(raw, jwks, {
+    ({ payload } = await jwtVerify(raw, keys, {
       issuer: config.jwtIss,
       audience: expectedAud,
     }));

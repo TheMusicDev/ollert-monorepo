@@ -8,5 +8,5 @@ export const Route = createFileRoute('/_authenticated/orgs/$orgId/')({
 
 function OrgDetailPage() {
   const { orgId } = Route.useParams()
-  return <OrgBoardsPage orgId={orgId} />
+  return <OrgBoardsPage key={orgId} orgId={orgId} />
 }
