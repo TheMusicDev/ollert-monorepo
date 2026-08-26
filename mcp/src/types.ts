@@ -21,7 +21,7 @@ export interface OrgMember {
 export interface Board {
   id: string;
   org_id: string;
-  name: string;
+  title: string;
   // GET /api/boards/:id includes lists + cards nested, unpaginated.
   lists?: List[];
 }
@@ -29,7 +29,7 @@ export interface Board {
 export interface List {
   id: string;
   board_id: string;
-  name: string;
+  title: string;
   position: number | string;
   cards?: Card[];
 }

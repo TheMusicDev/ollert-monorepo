@@ -1,15 +1,29 @@
-// Card tools — 1:1 with api-contract.md#Cards. (Cards have no collection
-// endpoint; they come nested under GET /api/boards/:id.)
+// Card tools — 1:1 with api-contract.md#Cards.
 
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/server";
 import { apiFetch } from "#/apiClient";
-import type { Card } from "#/types";
+import type { Card, Paginated } from "#/types";
+import { pagination } from "#/tools/pagination";
 import { run } from "#/tools/result";
 
 const cardPatchKeys = ["title", "description", "due_date", "position", "list_id"] as const;
 
 export function registerCards(server: McpServer, bearer: string): void {
+  server.registerTool(
+    "list_cards",
+    {
+      description: "List cards on a list (paginated, ordered by position ASC).",
+      inputSchema: z.object({
+        list_id: z.string().uuid(),
+        page: z.number().int().positive().optional(),
+        limit: z.number().int().positive().max(100).optional(),
+      }),
+      annotations: { readOnlyHint: true },
+    },
+    async (a) => run(() => apiFetch<Paginated<Card>>(`/api/lists/${a.list_id}/cards${pagination(a)}`, bearer)),
+  );
+
   server.registerTool(
     "create_card",
     {
@@ -22,6 +36,16 @@ export function registerCards(server: McpServer, bearer: string): void {
       }),
     },
     async (a) => run(() => apiFetch<Card>(`/api/lists/${a.list_id}/cards`, bearer, { method: "POST", body: JSON.stringify(patchOf(a, ["title", "description", "due_date"])) })),
+  );
+
+  server.registerTool(
+    "get_card",
+    {
+      description: "Get one card.",
+      inputSchema: z.object({ id: z.string().uuid() }),
+      annotations: { readOnlyHint: true },
+    },
+    async (a) => run(() => apiFetch<Card>(`/api/cards/${a.id}`, bearer)),
   );
 
   server.registerTool(
@@ -46,6 +70,7 @@ export function registerCards(server: McpServer, bearer: string): void {
     {
       description: "Delete a card (soft delete).",
       inputSchema: z.object({ id: z.string().uuid() }),
+      annotations: { destructiveHint: true },
     },
     async (a) => run(() => apiFetch<{ id: string }>(`/api/cards/${a.id}`, bearer, { method: "DELETE" })),
   );
