@@ -134,16 +134,30 @@ options tried) with gemma + nemotron as API-level fallbacks — see
 posted (see [Verifying it actually works](#verifying-it-actually-works)),
 not just a green check.
 
-A fourth failure mode, also loud (non-zero exit): the primary model **times
-out at the provider** — `litellm.Timeout: OpenrouterException - error code:
-504` after ~130s — and `retry_with_fallback_models` either exhausts its
-retries on the same 504 or the fallback models 504 too. This is distinct from
-the parse gotcha (the call *did* fail, the wrapper *did* engage, it just
-couldn't recover). Hit on PR #33 (a 15-file, ~400-line PR) with GLM-5.2
-primary. It's transient — re-running the workflow or pushing a trivial
-retrigger (e.g. `/review` comment, if `issue_comment` is wired) usually
-succeeds next run; no config change needed. Don't mistake it for a parse or
-auth failure.
+A fourth failure mode, also loud (non-zero exit): **transient provider
+failures** — either a timeout (`litellm.Timeout: OpenrouterException - error
+code: 504` after ~130s) or an upstream rate limit
+(`litellm.RateLimitError: ... 429 ... temporarily rate-limited upstream`,
+`limit_source: upstream_provider_shared_pool`). Both hit on PR #33 with
+GLM-5.2 primary. `retry_with_fallback_models` *does* engage — it walks the
+fallback list (gemma → nemotron here) — and the review tool can even succeed
+on a fallback (nemotron returned clean, valid YAML), but with
+`propagate_tool_errors = true` (this repo's setting) any *one* of the three
+auto-actions (`/describe`, `/review`, `/improve`) exhausting all models
+crashes the whole step *before* it publishes, so nothing posts despite the
+partial success.
+
+The 429 case is the harder one: a free-tier `:free` shared pool can be
+rate-limited across **all** the free fallback models in the same window, so
+an immediate re-run hits the same wall — the "re-run usually succeeds next
+time" advice for the 504 case does not reliably hold. Mitigations, in order:
+wait a few minutes for the upstream pool to recover before re-triggering;
+add your own OpenRouter provider key (BYOK, per the 429 remedy hint) to
+escape the shared pool; or drop `propagate_tool_errors` to `false` so a
+single tool's failure doesn't kill the step (trade-off: failures go quiet,
+which is exactly what the first two gotchas warned against — only do this if
+you have another signal that the run actually produced output). Don't
+mistake either failure for a parse or auth failure.
 
 ## Why two config files (toml + env vars)
 
