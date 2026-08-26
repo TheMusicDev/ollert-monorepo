@@ -22,7 +22,7 @@ claude.ai's hosted custom connectors require OAuth 2.1 on the remote MCP server 
 Supabase Auth now ships a native OAuth 2.1 + OIDC authorization server built specifically for MCP use cases (public beta since Nov 2025), issuing access tokens signed with the **same JWKS/keys** as normal Supabase login JWTs — the ones `api/src/Middleware/AuthMiddleware.php` already verifies (see [Architecture § Auth Flow](architecture.md#auth-flow)). This means `mcp/` never issues, stores, or refreshes tokens itself:
 
 * It validates every incoming Bearer token against Supabase's JWKS, mirroring `AuthMiddleware.php`'s checks (RS256 signature, `iss`, `aud`, `exp`, `sub`, `email`) — same rules, ported to TypeScript (`jose`), not reinvented.
-* It publishes RFC 9728 protected-resource metadata (`/.well-known/oauth-protected-resource`) pointing claude.ai at Supabase's authorization-server metadata (`https://<project-ref>.supabase.co/.well-known/oauth-authorization-server/auth/v1`) — the actual authorize/token/refresh/dynamic-client-registration dance happens directly between claude.ai and Supabase, never touching `mcp/`.
+* It publishes RFC 9728 protected-resource metadata (`/.well-known/oauth-protected-resource/mcp`, path-aware so the `/mcp` mount path is in the URL) pointing claude.ai at Supabase's authorization-server metadata (`https://<project-ref>.supabase.co/.well-known/oauth-authorization-server/auth/v1`) — the actual authorize/token/refresh/dynamic-client-registration dance happens directly between claude.ai and Supabase, never touching `mcp/`.
 * It forwards the caller's Bearer token unchanged to `api/` on every tool call — `api/`'s existing middleware verifies it exactly as it does today for the frontend.
 
 **Known gap**: Supabase's OAuth flow does not host a consent screen. `web/` (the existing TanStack Start SPA) needs one new route that reads the incoming OAuth authorization request, reuses the existing Supabase JS session (see [Architecture § Auth Flow](architecture.md#auth-flow)), shows an Allow/Deny screen, and calls Supabase JS's `approveAuthorization()`/`denyAuthorization()` to complete the flow. This is the one place the MCP feature touches `web/`.
@@ -39,7 +39,7 @@ claude.ai (hosted connector)
    │  MCP tool calls, Authorization: Bearer <supabase-oauth-access-token>
    ▼
 mcp/  (Node/TS, Resource Server only — no token issuance/storage)
-   │  - GET /.well-known/oauth-protected-resource (RFC 9728) → points at Supabase's AS metadata
+   │  - GET /.well-known/oauth-protected-resource/mcp (RFC 9728, path-aware) → points at Supabase's AS metadata
    │  - validates every Bearer token against Supabase JWKS (mirrors AuthMiddleware.php)
    │  - one MCP tool per REST endpoint (see api-contract.md), thin fetch-and-translate
    │  forwards the SAME Bearer token unchanged to the API
@@ -126,3 +126,13 @@ Kamal deploys a Docker container to a machine on the local network; Cloudflare (
 * DCR endpoint + SDK external-AS-proxy helper — RESOLVED: the SDK's `requireBearerAuth` + `oauthMetadataResponse` + RFC 9728 metadata publish Supabase's own AS endpoints as `authorization_servers`; no DCR, no proxy provider file needed. claude.ai discovers Supabase's AS directly.
 * No rate limiting in `mcp/` beyond `api/`'s existing per-user quotas — acceptable for v1.
 * Token/refresh lifetime handling by claude.ai's hosted connector against a Supabase-OAuth-issued token — unverified, could surface as silent mid-session tool-call failures.
+
+# Planned follow-ons (not started)
+
+Identified 2026-08-24 after the claude.ai connector went live; recorded in [log.md](log.md) 2026-08-24 (cont.) and [Roadmap](roadmap.md#near-term-work-not-started):
+
+* **Read-gap tools** — the 18 shipped tools are create/move/delete only; an agent can't enumerate. Missing: `list_lists`, `list_cards`, `get_card`, `get_list`. Other candidates: card reordering/move, search-as-a-tool, bulk list/card creation for seeding a new board.
+* **`mcp/README.md`** — no README yet listing the available tools.
+* **Pin dependency versions** — `package.json` has `@modelcontextprotocol/server` / `@types/bun` on `latest`; pin to concrete versions before this feels production-y (SDK is pre-1.0 and moving fast — exactly why a pin matters). Pin `zod`/`jose` likewise.
+* **Tool annotations** — the SDK lets tools declare `readOnlyHint`/`destructiveHint`/`idempotentHint`; we don't set them yet. claude.ai could surface "this will delete" more accurately. Low effort, reads as polish.
+* **Skip prompts/resources** — MCP also has prompts and resources primitives beyond tools, but only if there's a real agent use case; speculative otherwise.

@@ -40,21 +40,22 @@ Bare-bones: orgs, boards, lists, cards, drag-drop reorder (within and across lis
 # Deferred (post-MVP)
 
 * **Deploy scripts** — deploy target and mechanism are decided (shared PHP host, SSH, local scripts — see [Architecture](architecture.md)), but writing the scripts themselves is deferred until there's a working app to deploy. Two scripts, `/api` and `/web`, since the pipelines differ (PHP sync + migrations vs. static build sync).
-* **Realtime sync** — deferred at planning time because app data lives in CakePHP-owned MySQL, not Supabase's Postgres, so Supabase Realtime (which watches Postgres replication) doesn't apply directly. When picked back up, use a self-hosted Pusher-protocol service (Soketi) that CakePHP broadcasts to on writes, with the React app subscribing via `pusher-js`. SSE was considered and rejected as a poor fit for a typical PHP-FPM request lifecycle.
-* Labels, comments, attachments, checklists, activity log
+* **Realtime sync** — **DECIDED 2026-08-24 (supersedes the Soketi plan below): Supabase Realtime**, WAL-based, works once the app data is in Supabase Postgres (the [all-in migration](supabase-migration.md)). No extra infra to run. Biggest single UX gap vs real Trello, and now the cheapest it's ever been. ~~Originally deferred because app data lived in CakePHP-owned MySQL, so Supabase Realtime (which watches Postgres replication) didn't apply; the fallback plan was a self-hosted Pusher-protocol service (Soketi) with CakePHP broadcasting on writes and the React app subscribing via `pusher-js`.~~ Superseded.
+* **Attachments** — file upload per card. Storage backend **DECIDED 2026-08-24: Supabase Storage** (S3-compatible) — unblocks this; still needs upload/scan + quotas before shipping. Gates on the [all-in migration](supabase-migration.md).
+* **Search** — across boards/cards. **DECIDED 2026-08-24: PostgreSQL full-text search (`tsvector`/`tsquery` + GIN or GiST indexes) for keyword search, and `pgvector` for vector storage + similarity search (semantic)**, not MySQL FULLTEXT or Algolia. Gates on the [all-in migration](supabase-migration.md).
+* Labels, comments, checklists, activity log
 * Per-org roles (owner/member/viewer) — would add a `role` column to `org_members`
 * Per-board access scoping (currently all-or-nothing at the org level)
-* Social login providers
-* Search
+* **Social login providers** — **DECIDED 2026-08-24: Google + Apple only** (not GitHub). Deferred — no provider credentials yet; Supabase handles the wiring once obtained.
 
 # Key Decisions Log
 
 Full deliberation lives in [log.md](log.md); summarized here:
 
-* **DB**: MySQL owned by CakePHP, not Supabase Postgres — keeps Supabase strictly to identity, avoids coupling app schema to a Supabase project.
+* **DB**: MySQL owned by CakePHP, not Supabase Postgres — keeps Supabase strictly to identity, avoids coupling app schema to a Supabase project. ~~**SUPERSEDED 2026-08-24**~~ by the all-in-Supabase decision below — kept here as the historical record; the app still runs MySQL today, the swap happens when the migration branch executes.
 * **JWT verification**: JWKS/RS256 preferred over a shared HS256 secret — no long-lived shared secret to rotate. Fallback to HS256 documented in [Architecture](architecture.md) if the Supabase project turns out to be on the legacy secret.
 * **Repo**: monorepo (`/api`, `/web`, `/planning`).
-* **Realtime**: explicitly dropped from MVP after the DB choice made "just use Supabase Realtime" not viable — see Deferred above.
+* **Realtime**: explicitly dropped from MVP after the DB choice made "just use Supabase Realtime" not viable — see Deferred above. ~~**SUPERSEDED 2026-08-24**: Supabase Realtime now the plan, gated on the all-in-Supabase migration.~~
 * **Access model**: switched from per-board membership to orgs — an org has many boards, and org membership grants access to all of that org's boards (no per-board membership/roles in v1).
 * **Quotas**: `max_orgs` (default 1) and `max_boards_per_org` (default 3) live on `users`, enforced app-side. Board creation is org-owner-only (it's what spends the quota); other board actions remain open to any org member.
 * **JIT provisioning**: confirmed as find-or-create on every authenticated request (no dedicated bootstrap endpoint).
@@ -74,3 +75,17 @@ Full deliberation lives in [log.md](log.md); summarized here:
 * **FE 401 / auth redirects**: a 401 from the API is treated as unrecoverable (Supabase's client already auto-refreshes ahead of expiry) — clear session, redirect to login, no retry-after-refresh. An `/auth/callback` FE route receives Supabase's password-reset/email-confirm redirects.
 * **Local dev DB**: Docker Compose (`docker/`) running MariaDB + Mailpit, rather than a locally-installed MySQL. See [Architecture](architecture.md#local-development).
 * **Design starting point**: color palette, typography (Inter), and layout pattern (sidebar/navbar/cards/tables) extracted from `windmill-dashboard-react` / `windmill-react-ui` (MIT) — not their component library, which is unmaintained and would conflict with Base UI. See [Design](design.md).
+* **All-in Supabase (2026-08-24, reverses the DB decision above)**: app data moves from CakePHP-owned MySQL to Supabase Postgres, with Storage + Realtime adopted alongside the existing Auth. Major overhaul, decided not started — see [Supabase Migration](supabase-migration.md). Auth and the [MCP server](mcp-server.md) unchanged. Local dev post-migration = Supabase CLI local stack.
+* **Admin (#20, moved up 2026-08-24)**: add `is_admin` to the existing `users` table; admin mutates the per-user quota columns (no new table). Admin UI is a route in `web/`, not a separate app. `is_admin` is not stored in the JWT — the API queries `users.is_admin` per admin request, so promote/demote takes effect on the next request (a JWT-embedded flag would be stale for the token's lifetime). First admin bootstrapped via env `ADMIN_UUID`. Minimal version ships now on MySQL `users` (identical column shape survives the migration). Admin contract settled — `PATCH /api/admin/users/:id` patches the four quota fields + `is_admin`, partial PATCH ok, pagination same `?page=`/`?limit=` shape (see [API Contract](api-contract.md#admin)).
+* **Storage (2026-08-24)**: Supabase Storage (S3-compatible, switchable provider) for attachments and anything file-ish — closes the storage question. See [Supabase Migration](supabase-migration.md).
+* **Quotas (2026-08-24)**: no global raise, ever. The four defaults (`max_orgs=1`, `max_boards_per_org=3`, `max_lists_per_board=5`, `max_cards_per_board=100`) stay as the floor; per-user overrides via the admin feature is the only mechanism to raise a limit.
+* **Social login (2026-08-24)**: Google + Apple only (not GitHub). Deferred — no provider credentials yet.
+
+# Near-term work (not started)
+
+Decided but not yet started; not part of the all-in-Supabase migration:
+
+* **Admin feature** (#20) — the moved-up admin feature above. Minimal version on MySQL `users` first.
+* **MCP follow-ons** — read-gap tools (`list_lists`, `list_cards`, `get_card`, `get_list` — the 18 shipped tools are create/move/delete only, can't enumerate); `mcp/README.md`; pin `@modelcontextprotocol/server`/`zod`/`jose` to concrete versions; tool annotations (`readOnlyHint`/`destructiveHint`/`idempotentHint`). Skip MCP prompts/resources — no real agent use case. See [MCP Server](mcp-server.md).
+* **FE cleanups** — `key={orgId}` on org-scoped routes (kills the cross-org state-leak class patched per-branch three times — see `CLAUDE.md` Learnings); `web/src/test/setup.ts` global RTL cleanup (`globals: false` means auto-cleanup never fires).
+* **Testing gaps** — `verifyToken.ts` test (forged/expired/wrong-iss → `OAuthError(InvalidToken)`) + a drift guard vs `AuthMiddleware.php` (identical-claims enforcement, no automated check today); e2e (Playwright) not wired.
