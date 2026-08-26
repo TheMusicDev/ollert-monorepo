@@ -1,8 +1,8 @@
 import type { ComponentType, ReactNode } from 'react'
 import type * as TanstackReactRouter from '@tanstack/react-router'
-import { cleanup, render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { useAuth } from '@/lib/auth-context'
 
@@ -46,10 +46,6 @@ function mockAuth(overrides: Partial<ReturnType<typeof useAuth>> = {}) {
 }
 
 describe('ForgotPasswordPage', () => {
-  afterEach(() => {
-    cleanup()
-  })
-
   it('renders the email field and a link back to login', () => {
     mockAuth()
     render(<ForgotPasswordPage />)

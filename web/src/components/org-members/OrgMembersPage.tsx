@@ -35,17 +35,6 @@ export function OrgMembersPage({ orgId }: OrgMembersPageProps) {
   const [membersError, setMembersError] = useState<string | null>(null)
   const [reloadToken, setReloadToken] = useState(0)
 
-  // Reset pagination when switching organizations, so a page number left
-  // over from a previous (possibly deeper) org's member list doesn't get
-  // requested against this one. Adjusted during render (not an effect) so
-  // it lands before the members-fetch effect below ever sees the stale
-  // `page` value. See https://react.dev/learn/you-might-not-need-an-effect
-  const [orgIdForPage, setOrgIdForPage] = useState(orgId)
-  if (orgId !== orgIdForPage) {
-    setOrgIdForPage(orgId)
-    setPage(1)
-  }
-
   useEffect(() => {
     let cancelled = false
     setOrgError(null)
