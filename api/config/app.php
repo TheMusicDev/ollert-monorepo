@@ -3,7 +3,7 @@
 use App\Error\JsonExceptionRenderer;
 use Cake\Cache\Engine\FileEngine;
 use Cake\Database\Connection;
-use Cake\Database\Driver\Mysql;
+use Cake\Database\Driver\Postgres;
 use Cake\Log\Engine\FileLog;
 use Cake\Mailer\Transport\MailTransport;
 use function Cake\Core\env;
@@ -303,21 +303,10 @@ return [
          */
         'default' => [
             'className' => Connection::class,
-            'driver' => Mysql::class,
+            'driver' => Postgres::class,
             'persistent' => false,
             'timezone' => 'UTC',
-
-            /*
-             * For MariaDB/MySQL the internal default changed from utf8 to utf8mb4, aka full utf-8 support
-             */
-            'encoding' => 'utf8mb4',
-
-            /*
-             * If your MySQL server is configured with `skip-character-set-client-handshake`
-             * then you MUST use the `flags` config to set your charset encoding.
-             * For e.g. `'flags' => [\PDO::MYSQL_ATTR_INIT_COMMAND => 'SET NAMES utf8mb4']`
-             */
-            'flags' => [],
+            'encoding' => 'utf8',
             'cacheMetadata' => true,
             'log' => false,
 
@@ -330,15 +319,6 @@ return [
              * manipulated before being executed.
              */
             'quoteIdentifiers' => false,
-
-            /*
-             * During development, if using MySQL < 5.6, uncommenting the
-             * following line could boost the speed at which schema metadata is
-             * fetched from the database. It can also be set directly with the
-             * mysql configuration directive 'innodb_stats_on_metadata = 0'
-             * which is the recommended value in production environments
-             */
-            //'init' => ['SET GLOBAL innodb_stats_on_metadata = 0'],
             'url' => env('DATABASE_URL', null),
         ],
 
@@ -347,15 +327,13 @@ return [
          */
         'test' => [
             'className' => Connection::class,
-            'driver' => Mysql::class,
+            'driver' => Postgres::class,
             'persistent' => false,
             'timezone' => 'UTC',
-            'encoding' => 'utf8mb4',
-            'flags' => [],
+            'encoding' => 'utf8',
             'cacheMetadata' => true,
             'quoteIdentifiers' => false,
             'log' => false,
-            //'init' => ['SET GLOBAL innodb_stats_on_metadata = 0'],
             'url' => env('DATABASE_TEST_URL', 'sqlite://127.0.0.1/tmp/tests.sqlite'),
         ],
     ],
