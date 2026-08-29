@@ -1,8 +1,8 @@
 ---
 type: Data Model
 title: Ollert Data Model
-description: Entities, fields, and relationships for the MVP MySQL schema owned by CakePHP.
-tags: [data-model, mysql, schema]
+description: Entities, fields, and relationships for the MVP Postgres schema owned by CakePHP.
+tags: [data-model, postgres, schema]
 status: draft
 generated: { by: "claude-code/sonnet-5", at: "2026-08-19T19:50:29Z" }
 ---
@@ -11,9 +11,9 @@ generated: { by: "claude-code/sonnet-5", at: "2026-08-19T19:50:29Z" }
 
 MVP entities: `users`, `organizations`, `org_members`, `boards`, `lists`, `cards`. Access control is org-scoped: a member of an org has access to every board in that org — no per-board membership or roles in v1. No labels, comments, attachments, or checklists in the MVP — see [Roadmap](roadmap.md) for what's deferred.
 
-All primary keys (and the foreign keys that reference them) are UUIDs — MySQL `char(36)`, `cakephp/migrations` column type `uuid`. CakePHP's ORM generates the UUID automatically on save when the primary key column type is `uuid` and no value was set (`Text::uuid()` under the hood) — no extra plugin or manual `beforeSave` hook needed. `users.supabase_uid` stays a separate UUID column (the Supabase `sub` claim) from `users.id` (the local PK) — the two are unrelated identifiers pointing at the same person.
+All primary keys (and the foreign keys that reference them) are UUIDs — native Postgres `uuid` columns, `cakephp/migrations` column type `uuid`. CakePHP's ORM generates the UUID automatically on save when the primary key column type is `uuid` and no value was set (`Text::uuid()` under the hood) — no extra plugin or manual `beforeSave` hook needed, and no `pgcrypto`/`uuid-ossp` extension needed since the app generates the UUID, not the DB. `users.supabase_uid` stays a separate UUID column (the Supabase `sub` claim) from `users.id` (the local PK) — the two are unrelated identifiers pointing at the same person.
 
-> **Planned move (decided 2026-08-24, not started):** this MySQL schema is being relocated to Supabase hosted Postgres as part of the all-in-Supabase overhaul (UUIDs port cleanly; MySQL-specific types/indexes get Postgres equivalents). The schema below keeps describing MySQL until the migration branch executes the swap — see [Supabase Migration](supabase-migration.md) and [log.md](log.md) 2026-08-24 (cont.). The `is_admin` column and the per-user quota-override mechanism added 2026-08-24 survive the move unchanged (same column shape).
+> **2026-08-27: schema relocated to Postgres locally.** The all-in-Supabase overhaul (decided 2026-08-24) moved this schema from MySQL to Supabase hosted Postgres — the phinx migration files needed zero changes (they already used DB-agnostic abstract types: `uuid`, `string`, `integer`, `datetime`), confirming the migration is a pure connection/driver swap, not a schema rewrite. Verified locally end-to-end (JIT user provisioning + org/board/list/card create) against the Supabase CLI local stack — see [Supabase Migration](supabase-migration.md) and [log.md](log.md) 2026-08-27. Prod (negrita) still runs MySQL until the deploy cutover. The `is_admin` column and the per-user quota-override mechanism added 2026-08-24 carried over unchanged (same column shape).
 
 ## Field constraints
 
@@ -31,7 +31,7 @@ Local shadow of the Supabase-authenticated identity. Created just-in-time on fir
 | field | type | notes |
 |---|---|---|
 | id | uuid, PK | local identity |
-| supabase_uid | char(36), unique | Supabase `sub` claim (UUID) |
+| supabase_uid | uuid, unique | Supabase `sub` claim (UUID) |
 | email | varchar | denormalized from JWT claim at provisioning time, refreshed opportunistically |
 | display_name | varchar, nullable | |
 | max_orgs | int, default 1 | quota: orgs this user may own (see Quotas below) |
