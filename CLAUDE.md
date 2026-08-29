@@ -54,6 +54,8 @@ This file grows as we work. When you hit a non-obvious gotcha, get corrected on 
 
 **Two living runbooks to keep current alongside this file:** `KAMAL_DEPLOYMENT.md` (project-agnostic kamal gotcha log) and `PR_AGENT_SETUP.md` (project-agnostic pr-agent setup/gotcha log). When a new kamal or pr-agent gotcha is hit — a deploy failure pattern, a config footgun, a model-quality failure — update the relevant runbook in the same turn, not just the Learnings list below. These runbooks are the reusable part (Ollert-specific details stay in `DEPLOYMENT.md`); letting them drift stale defeats their purpose.
 
+**`post-merge.md` (repo root) is a living punch list, not a snapshot.** It tracks work deliberately deferred out of the current branch (started 2026-08-27 for the Supabase migration: docker cleanup, `.env.example` updates, negrita deploy rewrite). Whenever a branch defers follow-up work, add it here in the same turn rather than only mentioning it in conversation. Whenever a listed item gets done, check it off (or remove it) in the same turn it lands — don't let it silently go stale.
+
 ### Learnings & Corrections
 
 - 2026-08-20: `web/src/test/setup.ts` doesn't register global RTL cleanup (`vitest.config.ts` sets `globals: false`, so `@testing-library/react`'s auto-cleanup-via-global-`afterEach` never triggers) — any test file with more than one `render()` call needs its own `afterEach(() => cleanup())`, or add it once globally in `setup.ts`. Hit independently by 5 separate Section 2 FE branches before landing as a shared fix.

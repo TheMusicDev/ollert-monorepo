@@ -13,12 +13,14 @@ Ollert today runs CakePHP-owned MySQL for app data and uses Supabase for auth on
 
 # The spine: MySQL → Postgres migration
 
-The core of the overhaul is migrating the CakePHP relational schema from MySQL to Supabase's hosted Postgres. Touches:
+**Landed locally 2026-08-27.** The core of the overhaul was migrating the CakePHP relational schema from MySQL to Supabase's hosted Postgres:
 
-* **Schema/types** — `char(36)` UUID PKs port cleanly; the MySQL-specific column types and defaults need Postgres equivalents. See [Data Model](data-model.md) for the current schema.
-* **Migration files** — the existing `cakephp/migrations` phinx files are MySQL-flavored; the migration branch rewrites them (or layers a Postgres-targeted set) against the Postgres connection.
-* **MySQL-specific query syntax** — any raw SQL or query-builder fragments using MySQL-isms (backtick quoting, `AUTO_INCREMENT` leftovers, `FULLTEXT` indexes, `LIMIT`/`ON DUPLICATE KEY` shapes) become Postgres equivalents.
-* **Local dev setup** — `docker/docker-compose.yml` (MariaDB 11.8 + Mailpit) is replaced by the Supabase CLI local stack (see [Local dev](#local-dev) below).
+* **Schema/types** — native Postgres `uuid` PKs (not `char(36)`). Turned out to need zero changes: the existing `cakephp/migrations` phinx files already used DB-agnostic abstract types (`uuid`, `string`, `integer`, `datetime`), so this was a pure connection/driver swap, not a schema rewrite. See [Data Model](data-model.md) for the current schema.
+* **Migration files** — unchanged; `bin/cake migrations migrate` ran all 6 migrations against a fresh local Postgres with no edits needed.
+* **MySQL-specific query syntax** — none found. Grepped `api/src/Controller`/`Service`/`Model` before starting; everything goes through CakePHP's query builder, no raw SQL, no MySQL-isms to port.
+* **Local dev setup** — `docker/docker-compose.yml` (MariaDB 11.8 + Mailpit) is superseded by the Supabase CLI local stack (see [Local dev](#local-dev) below). Not yet deleted — see `post-merge.md`.
+
+Prod (negrita) cutover is the only remaining piece — see Cutover below.
 
 Auth is **unchanged**: `verifyToken.ts` + `AuthMiddleware.php` keep their current JWKS check against the same Supabase project, regardless of where the app data lives. The MCP server is unchanged for the same reason.
 
