@@ -57,7 +57,7 @@ Full deliberation lives in [log.md](log.md); summarized here:
 * **Repo**: monorepo (`/api`, `/web`, `/planning`).
 * **Realtime**: explicitly dropped from MVP after the DB choice made "just use Supabase Realtime" not viable — see Deferred above. ~~**SUPERSEDED 2026-08-24**: Supabase Realtime now the plan, gated on the all-in-Supabase migration.~~
 * **Access model**: switched from per-board membership to orgs — an org has many boards, and org membership grants access to all of that org's boards (no per-board membership/roles in v1).
-* **Quotas**: `max_orgs` (default 1) and `max_boards_per_org` (default 3) live on `users`, enforced app-side. Board creation is org-owner-only (it's what spends the quota); other board actions remain open to any org member.
+* **Quotas**: `max_orgs` (default 1) and `max_boards_per_org` (default 3) live on `users`, enforced app-side. Board creation is org-owner-only (it's what spends the quota); other board actions remain open to any org member. **2026-08-30: reviewed and accepted as-is** — full matrix + deferred ideas for a future revisit in [Permissions](permissions.md).
 * **JIT provisioning**: confirmed as find-or-create on every authenticated request (no dedicated bootstrap endpoint).
 * **CORS**: origin allow-list only, no credentials mode — auth is a Bearer token, not a cookie, so there's nothing for `Access-Control-Allow-Credentials` to protect.
 * **Error shape**: standard `{ error: { message, code, fields? } }` envelope on every non-2xx response — see [API Contract](api-contract.md).
