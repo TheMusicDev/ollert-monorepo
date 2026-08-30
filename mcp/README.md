@@ -49,6 +49,18 @@ Reads carry `readOnlyHint`; deletes carry `destructiveHint`; creates/updates car
 
 OAuth 2.1 + PKCE against the Supabase project’s native authorization server; `mcp/` publishes RFC 9728 protected-resource metadata pointing claude.ai at it and validates every Bearer token (RS256, `iss`/`aud`/`exp`/`sub`/`email`) via `jose`. The token is forwarded to the API verbatim — never minted, stored, or refreshed here. The one `web/` touchpoint is the `/oauth/consent` route Supabase’s flow redirects to. Full design: [`planning/mcp-server.md`](../planning/mcp-server.md).
 
+## Connecting claude.ai
+
+1. In claude.ai, go to **Settings → Connectors → Add custom connector**.
+2. **Server URL**: `https://ollert-mcp.2719.fyi/mcp`
+3. claude.ai auto-discovers the OAuth setup from `mcp/`'s RFC 9728 metadata (`/.well-known/oauth-protected-resource/mcp`), which points at the Supabase project's own OAuth 2.1 authorization server — no separate config needed for that part.
+4. Dynamic client registration is **off** on the Supabase side, so claude.ai won't auto-register itself. Open the connector's **Advanced settings** and paste in the pre-registered `client_id` by hand.
+   - The `client_id` value itself lives only in the Supabase dashboard (**Authentication → OAuth Apps**, or wherever that project's registered OAuth apps are listed) — it's dashboard state, not anything checked into this repo. If you don't have it, look it up there; it's registered as a **public client** (PKCE-only, no client secret) with redirect URI `https://claude.ai/api/mcp/auth_callback`.
+5. Complete the connector's OAuth flow — it'll redirect through Supabase's authorize endpoint, land on Ollert's `/oauth/consent` page (`web/src/routes/oauth/consent.tsx`) for you to sign in and approve, then bounce back to claude.ai with a token.
+6. Sanity check it actually works: ask Claude to list your Ollert orgs (`list_orgs`) — a 401 there usually means the token's `aud` claim or the `client_id` is wrong; see [`planning/mcp-server.md`](../planning/mcp-server.md#open-risks) for known rough edges.
+
+If the server URL ever needs to change (new domain, moved off negrita) or the OAuth app gets re-registered, this whole flow needs redoing — there's no way to update just one piece from claude.ai's side.
+
 ## Develop
 
 ```sh
