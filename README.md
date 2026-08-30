@@ -6,7 +6,7 @@ Full architecture, schema, API contract, and decision history live in the OKF pl
 
 ## Repo layout
 
-```
+```text
 ollert/
   api/          # CakePHP backend
   web/          # TanStack Start frontend
@@ -23,7 +23,7 @@ See [`planning/architecture.md#local-development`](planning/architecture.md#loca
 ### Prerequisites
 
 - **PHP 8.5** + **Composer** (`api/`).
-- **Bun** (`web/`, `mcp/`) — reads `packageManager` in each `package.json` to self-select its version, no separate install step needed beyond having Bun itself.
+- **Bun v1.3.14** (`web/`, `mcp/`) — install it yourself (e.g. `curl -fsSL https://bun.sh/install | bash`). `packageManager` in each `package.json` declares the pinned version for tooling that reads it (like `oven-sh/setup-bun` in CI); Bun itself doesn't auto-switch to it locally.
 - **Docker** (Supabase CLI's local stack runs as ~9 containers) and the **Supabase CLI**: `brew install supabase/tap/supabase`.
 
 ### First-time setup
@@ -31,13 +31,13 @@ See [`planning/architecture.md#local-development`](planning/architecture.md#loca
 1. `bun install` (repo root) — installs `concurrently`, which `bun dev` uses to run everything below together.
 2. `supabase init` — already done, `supabase/config.toml` is checked in. Skip.
 3. Generate your own local RS256 signing key (gitignored, one per dev — see `CLAUDE.md` Learnings 2026-08-27/29 for why this is needed instead of the CLI's HS256 default, and a gotcha with the command below). `supabase gen signing-key` requires the target file to already exist (even with `--append`), so seed an empty array first:
-   ```
+   ```sh
    echo '[]' > supabase/signing_keys.json
    supabase gen signing-key --algorithm RS256 --append
    ```
    (Don't pipe this command through `head`/`tail` — it's an interactive TUI and closing the pipe early crashes it with an `EPIPE`. Run it plain.)
 4. One root `.env` instead of five scattered ones:
-   ```
+   ```sh
    cp .env.example .env
    $EDITOR .env        # local-dev defaults are already filled in; mainly just set API__SECURITY_SALT
    bun run env         # writes api/.env, web/.env, mcp/.env, e2e/.env, .kamal/secrets from .env
@@ -55,7 +55,7 @@ Once set up, you don't repeat the above — just:
 - `bun run dev:stop` when you want Supabase's containers down too — data persists in the Postgres volume across a stop/start cycle, so you keep your local users/orgs/boards.
 - Individual pieces if you don't want all three: `bun run dev:api`, `bun run dev:web`, `bun run dev:mcp`, `bun run dev:db` (just Supabase).
 
-Only redo steps 3–4 above if you *reinitialize* the project (`supabase db reset` with a fresh volume, or deleting/recreating the whole local stack) rather than a plain stop/start — that's when the signing key and the printed URLs/keys actually change.
+`supabase/signing_keys.json` is a plain local file, not managed by Supabase's own lifecycle — `supabase stop`/`start` and even `supabase db reset` (which does recreate the Postgres container and wipe its data, so you'll need to re-run `bin/cake migrations migrate` after one) all leave it untouched, verified directly. Only redo step 3 if the file doesn't exist yet (fresh clone) or you've deleted/rotated it yourself. The printed URLs/keys in step 4 are stable too unless you fully delete and re-`supabase init` the project.
 
 ## CI
 

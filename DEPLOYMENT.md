@@ -173,21 +173,19 @@ back to **Site URL**. So the allow-list is what matters — `redirectTo` wins
 when it's listed.
 
 Our `web/src/lib/auth-context.tsx` `authCallbackUrl()` sets `redirectTo` =
-`${window.location.origin}/auth/callback` — so it's already per-environment
-(prod origin on prod, localhost on dev). Just allow-list both:
+`${window.location.origin}/auth/callback` — per-environment by construction,
+but **since the 2026-08-29 Supabase migration, dev no longer talks to this
+hosted project at all** — local dev uses the Supabase CLI local stack's own
+separate Auth instance (`supabase/config.toml`'s own
+`site_url`/`additional_redirect_urls`, currently `http://localhost:3000/...`
+— see that file, not this dashboard). So this hosted project's allow-list
+only needs the **prod** entry:
 
 - **Site URL** → `https://ollert.2719.fyi` (only the fallback; used when a
   `redirectTo` isn't allowed. Sane default = prod. Set and forget.)
 - **Redirect URLs** (allow-list) → add `https://ollert.2719.fyi/auth/callback`
-  (prod).
-
-**Changed 2026-08-29** (post Supabase migration): dev no longer talks to
-this hosted project at all — local dev uses the Supabase CLI local stack's
-own separate Auth instance (`supabase/config.toml`'s own
-`site_url`/`additional_redirect_urls`, currently `http://localhost:3000/...`
-— see that file, not this dashboard). So the hosted project's allow-list only
-needs the prod entry now; drop `http://localhost:3000/auth/callback` from it
-if it's still there from before the migration.
+  only. Drop `http://localhost:3000/auth/callback` from it if it's still
+  there from before the migration — dev no longer needs it here.
 - **Email Templates → Recovery** → leave the default
   `{{ .SiteURL }}` / `{{ .ConfirmationURL }}` (don't hardcode a host).
 

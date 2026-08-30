@@ -17,7 +17,7 @@ Bare-bones: orgs, boards, lists, cards, drag-drop reorder (within and across lis
 * CakePHP app skeleton, `cakephp/migrations` set up, `muffin/trash` installed, migrations for [Data Model](data-model.md) (including `created`/`modified`/`deleted` on every table)
 * Supabase project set up (auth only), JWKS verification middleware, CORS policy applied (see [Architecture](architecture.md))
 * TanStack Start (SPA mode) skeleton — Bun, Tailwind (wired with the [Design](design.md) palette/tokens), Base UI — Supabase JS client wired for login/signup/session, `/auth/callback` route
-* `docker/` Compose stack (MariaDB + Mailpit) running for local dev — see [Architecture](architecture.md#local-development)
+* ~~`docker/` Compose stack (MariaDB + Mailpit) running for local dev~~ — superseded 2026-08-27 by the Supabase CLI local stack (`supabase start`), `docker/` deleted 2026-08-29. See [Architecture](architecture.md#local-development).
 
 ## Phase 2 — Core CRUD
 * [API Contract](api-contract.md) endpoints implemented, including quota checks and the standard error envelope
