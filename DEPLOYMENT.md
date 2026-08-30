@@ -295,7 +295,8 @@ The app container reaches Postgres over the internet at whatever host
 `DATABASE_URL` names (Supabase's hosted endpoint or pooler) — not a
 same-host Docker-network accessory like the old MariaDB setup. No special
 kamal networking involved; it's an outbound connection like any external
-API call, gated by `sslmode=require`.
+API call, TLS-enforced via `ssl=true&ssl_mode=require` (see "API DB
+connection" above — not `sslmode=require`, CakePHP doesn't read that key).
 
 ---
 
