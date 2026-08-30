@@ -49,17 +49,47 @@ Reads carry `readOnlyHint`; deletes carry `destructiveHint`; creates/updates car
 
 OAuth 2.1 + PKCE against the Supabase project’s native authorization server; `mcp/` publishes RFC 9728 protected-resource metadata pointing claude.ai at it and validates every Bearer token (RS256, `iss`/`aud`/`exp`/`sub`/`email`) via `jose`. The token is forwarded to the API verbatim — never minted, stored, or refreshed here. The one `web/` touchpoint is the `/oauth/consent` route Supabase’s flow redirects to. Full design: [`planning/mcp-server.md`](../planning/mcp-server.md).
 
+## Registering a new OAuth client
+
+Dynamic client registration is **off** on the Supabase side (`allow_dynamic_registration` under `[auth.oauth_server]` — a real config flag, not exposed as a dashboard toggle on hosted projects as of this writing). That means every client — claude.ai, Claude Code, Claude Desktop, anything else — needs its own manually-registered OAuth app before it can connect. Deliberate: an unauthenticated self-registration endpoint would let anyone register a client that shows up asking for approval on Ollert's own `/oauth/consent` screen, with a name/logo they control. For a handful of known, personal clients, registering each by hand is a small one-time cost against that risk.
+
+Dashboard path (verified against [Supabase's OAuth 2.1 Server docs](https://supabase.com/docs/guides/auth/oauth-server/getting-started)):
+
+1. **Authentication → OAuth Apps** (under "Manage") → **Add a new client**.
+2. Fill in:
+   - **Client name** — whatever's clear (e.g. "Claude Code", "Claude Desktop").
+   - **Redirect URIs** — the exact callback URI the client uses (see below; must match exactly, no wildcards).
+   - **Client type** — **Public** (PKCE, no client secret — every client here is a native/CLI app or a hosted connector, none can keep a secret safely).
+3. **Create** — the **Client ID** is shown once; public clients get no secret to save.
+
+The `client_id` itself lives only in the Supabase dashboard, never in this repo.
+
 ## Connecting claude.ai
 
 1. In claude.ai, go to **Settings → Connectors → Add custom connector**.
 2. **Server URL**: `https://ollert-mcp.2719.fyi/mcp`
 3. claude.ai auto-discovers the OAuth setup from `mcp/`'s RFC 9728 metadata (`/.well-known/oauth-protected-resource/mcp`), which points at the Supabase project's own OAuth 2.1 authorization server — no separate config needed for that part.
-4. Dynamic client registration is **off** on the Supabase side, so claude.ai won't auto-register itself. Open the connector's **Advanced settings** and paste in the pre-registered `client_id` by hand.
-   - The `client_id` value itself lives only in the Supabase dashboard (**Authentication → OAuth Apps**, or wherever that project's registered OAuth apps are listed) — it's dashboard state, not anything checked into this repo. If you don't have it, look it up there; it's registered as a **public client** (PKCE-only, no client secret) with redirect URI `https://claude.ai/api/mcp/auth_callback`.
+4. Register a client per the section above, redirect URI `https://claude.ai/api/mcp/auth_callback`. Open the connector's **Advanced settings** and paste in the resulting `client_id` by hand (DCR is off, so claude.ai can't auto-register itself).
 5. Complete the connector's OAuth flow — it'll redirect through Supabase's authorize endpoint, land on Ollert's `/oauth/consent` page (`web/src/routes/oauth/consent.tsx`) for you to sign in and approve, then bounce back to claude.ai with a token.
 6. Sanity check it actually works: ask Claude to list your Ollert orgs (`list_orgs`) — a 401 there usually means the token's `aud` claim or the `client_id` is wrong; see [`planning/mcp-server.md`](../planning/mcp-server.md#open-risks) for known rough edges.
 
 If the server URL ever needs to change (new domain, moved off negrita) or the OAuth app gets re-registered, this whole flow needs redoing — there's no way to update just one piece from claude.ai's side.
+
+## Connecting Claude Code
+
+Claude Code's remote-MCP OAuth callback is a fixed local port you choose, not a URL Supabase already knows about — so it needs its own registered client (redirect URI must match exactly, no wildcards).
+
+1. Register a client per the section above — redirect URI `http://localhost:<PORT>/callback` (exactly that path; Claude Code ≥2.1.231 uses `localhost`, not `127.0.0.1` — older versions differ, see [Claude Code's MCP docs](https://code.claude.com/docs/en/mcp.md#redirect-uri-callback-port)). Pick a `<PORT>` not already used by anything else you run locally.
+2. ```sh
+   claude mcp add --transport http \
+     --client-id <client_id from step 1> \
+     --callback-port <PORT> \
+     ollert https://ollert-mcp.2719.fyi/mcp
+   ```
+3. Claude Code opens the OAuth flow in your browser — same Supabase authorize → Ollert `/oauth/consent` → callback dance as claude.ai, just landing on `localhost:<PORT>` instead of claude.ai's servers.
+4. Verify: ask Claude Code to list your Ollert orgs.
+
+Verified working end-to-end 2026-08-30.
 
 ## Develop
 
