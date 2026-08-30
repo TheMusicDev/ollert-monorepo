@@ -304,11 +304,38 @@ return [
         'default' => [
             'className' => Connection::class,
             'driver' => Postgres::class,
-            'persistent' => false,
+            /*
+             * Persistent (not per-request) connections. Prod's DB is Supabase's
+             * hosted Postgres (pooler in us-west-2), not a same-host container
+             * like the old MariaDB accessory — reconnecting every request costs
+             * a full TCP+TLS handshake over the WAN (measured: ~900ms). A
+             * persistent connection lets each PHP-FPM worker reuse one already-
+             * open connection across requests instead. Still one logical
+             * connection per worker process, so it doesn't fight the
+             * transaction-mode pooler's own multiplexing.
+             */
+            'persistent' => true,
             'timezone' => 'UTC',
             'encoding' => 'utf8',
             'cacheMetadata' => true,
             'log' => false,
+
+            /*
+             * Emulated (not native) prepared statements. Required when connecting
+             * through a transaction-mode PgBouncer/Supavisor pooler (prod's
+             * DATABASE_URL): named prepared statements are backend-session-scoped,
+             * but the pooler multiplexes many client connections onto few backend
+             * sessions — so one request's PREPARE can collide with a different
+             * query that happens to reuse the same generic statement name on the
+             * same backend session (`SQLSTATE[08P01]: bind message supplies N
+             * parameters, but prepared statement "pdo_stmt_..." requires M`).
+             * Emulated prepares build the query client-side instead, so there's
+             * no server-side statement identity to collide. Harmless against a
+             * direct (non-pooled) connection too, e.g. local dev.
+             */
+            'flags' => [
+                \PDO::ATTR_EMULATE_PREPARES => true,
+            ],
 
             /*
              * Set identifier quoting to true if you are using reserved words or

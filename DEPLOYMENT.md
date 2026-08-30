@@ -74,19 +74,59 @@ project's Postgres, not a self-hosted accessory on negrita. There's no
 string:
 
 ```sh
-DATABASE_URL=postgres://<user>:<password>@<host>:<port>/<database>?sslmode=require
+DATABASE_URL=postgres://<user>:<password>@<host>:<port>/<database>?ssl=true&ssl_mode=require
 ```
 
-Get the exact value from the Supabase dashboard: **Project Settings →
-Database → Connection string**. Supabase offers a **direct connection**
-(port 5432) and a **pooled connection** via pgbouncer (transaction mode,
-port 6543, hostname prefixed `aws-0-...pooler...`). CakePHP's Postgres
-connections here are non-persistent (`'persistent' => false` in
-`api/config/app.php`, opened fresh per request) — that shape matches the
-transaction-mode pooler's model, so start there; fall back to the direct
-connection if the pooler's prepared-statement handling causes issues with
-CakePHP's ORM. **Not verified against the real hosted project yet** — confirm
-whichever you pick actually works before relying on it (see post-merge.md).
+Get the value from the Supabase dashboard: **Project Settings → Database →
+Connection string** — **but the dashboard gives you a `postgresql://`
+scheme, and CakePHP will NOT accept that.** `Cake\Datasource\ConnectionManager`
+maps a DSN's scheme to a driver class through a hardcoded table (`mysql`,
+`postgres`, `sqlite`, `sqlserver` — no `postgresql` entry); an unrecognized
+scheme falls through to CakePHP trying to instantiate a class literally
+named `postgresql`, which doesn't exist, and blows up with
+`MissingDriverException: Could not find driver 'postgresql'`. **Rewrite the
+scheme to `postgres://` before using the string anywhere** (`.kamal/secrets`,
+a one-off local override, wherever). Confirmed this is purely the scheme
+string, not a missing extension — same PHP install, same `pdo_pgsql`,
+worked instantly after only the scheme changed. Hit this for real running
+the one-time schema migration below.
+
+**Also don't use `?sslmode=require`** (Supabase's own docs use that name,
+and an earlier version of this doc did too) — CakePHP's DSN parser merges
+query-string params into the config array verbatim as `sslmode`, but the
+Postgres driver's `connect()` only checks for `ssl` (bool) + `ssl_mode`
+(string) keys, so `sslmode=require` silently does nothing; CakePHP never
+sees it. Confirmed live: without `ssl`/`ssl_mode` set, the connection was
+still encrypted (PDO_PGSQL's default `sslmode=prefer` opportunistically
+negotiated TLS 1.3 since Supabase's pooler supports it — checked via
+`psql`'s `\conninfo`, not `pg_stat_ssl` off `pg_backend_pid()`, which
+reports the pooler's own backend-to-Postgres connection, not the
+client-to-pooler one that actually crosses the public internet). So this
+isn't "traffic was plaintext" — it's that `prefer` mode permits a silent
+downgrade to plaintext if something ever blocks TLS negotiation (a
+misconfigured network path, a MITM), without erroring. `ssl=true` +
+`ssl_mode=require` (the keys above) make it fail closed instead.
+
+Supabase offers a **direct connection** (port 5432) and a **pooled
+connection** via pgbouncer (transaction mode, port 6543, hostname prefixed
+`aws-0-...pooler...`).
+
+**2026-08-30: use the pooler for negrita — the direct connection doesn't
+work from there.** `db.<project-ref>.supabase.co` (direct) resolves to an
+IPv6-only address; negrita's Docker containers have no IPv6 route out, so
+the API container failed every DB connection with
+`SQLSTATE[08006] ... Network unreachable`, even though the identical
+connection string worked fine from a local machine's shell (which does
+have an IPv6 route) — used for the one-time schema migration below. The
+pooler (`aws-0-us-west-2.pooler.supabase.com:6543`) is IPv4-reachable and
+is what `.kamal/secrets`' `DATABASE_URL` actually uses; confirmed working
+end-to-end (`bin/cake migrations status` inside the deployed container
+shows all 6 migrations `up`). **Note (2026-08-30):** `api/config/app.php`'s
+Postgres connection is `'persistent' => true` (flipped from `false` the
+same day, to fix reconnect-per-request latency over the WAN — see the
+Dockerfile/CLAUDE.md history) — a persistent connection is still one
+logical connection per PHP-FPM worker, so it doesn't conflict with the
+transaction-mode pooler's own multiplexing either way.
 
 **Web build-time (local build, NOT `.kamal/secrets`):**
 The web SPA is built **locally** before `kamal deploy` (`bun run build` in
@@ -113,19 +153,33 @@ TanStack Start's SPA prerender spins up a vite preview server that fails to
 bind under the bun Nitro preset inside docker (ConnectionRefused
 localhost:3000, 0 pages prerendered); building locally works.
 
-### 3. Create the schema on hosted Postgres (once)
+### 3. Create the schema on hosted Postgres (once) — **done 2026-08-30**
 
 No accessory to boot — the database already exists, hosted by Supabase.
 One-time schema creation, run from any machine with the prod `DATABASE_URL`
-(e.g. locally, pointed at prod temporarily):
+(e.g. locally, pointed at prod temporarily). A plain
+`DATABASE_URL=<prod string> bin/cake migrations migrate` prefix does NOT
+work here — `api/.env`'s own `DATABASE_URL` (the local dev value) is
+already in `getenv()` by the time CakePHP's dotenv loader runs, and it
+raises `LogicException: Key "DATABASE_URL" has already been defined`
+rather than overriding it. Source the local `.env` first (so every *other*
+required var is set), then override just this one:
 
-```sh
-cd api && DATABASE_URL=<prod connection string> bin/cake migrations migrate
+```bash
+cd api
+PROD_DB_URL_RAW=<the connection string from .kamal/secrets or the dashboard>
+PROD_DB_URL="${PROD_DB_URL_RAW/postgresql:\/\//postgres://}"   # dashboard gives postgresql://, CakePHP needs postgres:// — see above
+set -a; source .env; DATABASE_URL="$PROD_DB_URL"; set +a
+bin/cake migrations migrate
 ```
+
+(Bash-specific syntax — `${VAR/pattern/replacement}` and `source` aren't POSIX `sh`. Run this with bash, not `sh`.)
 
 This is the entire "cutover" — there's no data to migrate (see
 `planning/supabase-migration.md#cutover-concern`), just schema creation
-against an empty database. After this, `api/docker-entrypoint.sh` re-runs
+against an empty database. Ran it for real against the hosted project —
+all 6 migrations applied clean, verified with `bin/cake migrations status`
+before and after. After this, `api/docker-entrypoint.sh` re-runs
 `bin/cake migrations migrate` on every deploy (idempotent, see "How
 migrations run" below) — this one-time step just gets the first deploy's
 entrypoint past an otherwise-empty database faster and lets you verify the
@@ -241,7 +295,8 @@ The app container reaches Postgres over the internet at whatever host
 `DATABASE_URL` names (Supabase's hosted endpoint or pooler) — not a
 same-host Docker-network accessory like the old MariaDB setup. No special
 kamal networking involved; it's an outbound connection like any external
-API call, gated by `sslmode=require`.
+API call, TLS-enforced via `ssl=true&ssl_mode=require` (see "API DB
+connection" above — not `sslmode=require`, CakePHP doesn't read that key).
 
 ---
 
