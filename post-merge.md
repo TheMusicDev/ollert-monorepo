@@ -2,6 +2,16 @@
 
 Loose ends from the `feat/supabase-migration` branch (MySQL → Supabase Postgres spine, local-dev only). Local dev works end-to-end; everything below is what's left once that branch merges. Not scoped: Storage/Realtime/Search (separate future work, see `planning/supabase-migration.md`), admin (#20), Playwright e2e — those are pre-existing roadmap items, unrelated to this branch.
 
+## Remaining (as of `chore/post-merge-cleanup` merging — 2026-08-30)
+
+Everything below is done except these 3, all gated on the live prod cutover — see the "Deploy rewrite" and "Misc" sections for full detail:
+
+1. **Run the schema migration against prod's real hosted Postgres** (needs the actual `DATABASE_URL`, one-time `bin/cake migrations migrate`).
+2. **Nuke/rebuild negrita** — stop the old containers, remove the `ollert-db` volume, deploy fresh with the rewritten config.
+3. **Final docs pass** dropping the "prod still runs MySQL" / "cutover pending" caveats in `planning/architecture.md`/`data-model.md`/`supabase-migration.md`/`roadmap.md` — do this right after #1/#2 actually land, not before.
+
+Do these from `main` after this branch merges, not in a feature branch — a deploy should reflect what's actually on `main`, not a branch. Needs explicit go-ahead + the prod Supabase project's connection details before starting.
+
 ## docker/ cleanup
 
 - [x] Delete `docker/docker-compose.yml`, `docker/.env.example`, `docker/data/` (gitignored, but confirm nothing references it) — fully superseded by the Supabase CLI local stack (`supabase start`). Done 2026-08-29: `git rm -r docker/`, gitignore entries for `docker/.env`/`docker/data/` removed too.
