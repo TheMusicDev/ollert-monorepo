@@ -28,7 +28,7 @@ See [`planning/architecture.md#local-development`](planning/architecture.md#loca
 
 ### First-time setup
 
-1. `bun install` (repo root) — installs `concurrently`, which `bun dev` uses to run everything below together.
+1. `bun install` (repo root) — a `postinstall` hook cascades this into `web/`, `mcp/`, `e2e/` (`bun install`) and `api/` (`composer install`) too, so this one command sets up every sub-project's dependencies, not just the root's own (`concurrently`, which `bun dev` uses to run everything below together).
 2. `supabase init` — already done, `supabase/config.toml` is checked in. Skip.
 3. Generate your own local RS256 signing key (gitignored, one per dev — see `CLAUDE.md` Learnings 2026-08-27/29 for why this is needed instead of the CLI's HS256 default, and a gotcha with the command below). `supabase gen signing-key` requires the target file to already exist (even with `--append`), so seed an empty array first:
    ```sh
@@ -43,9 +43,8 @@ See [`planning/architecture.md#local-development`](planning/architecture.md#loca
    bun run env         # writes api/.env, web/.env, mcp/.env, e2e/.env, .kamal/secrets from .env
    ```
    `bun run env` skips any target file that already exists — pass `-f`/`--force` (as `bun run env -- --force`) to regenerate one you've hand-edited since. See `.env.example`'s own header comment for the `<TARGET>__<VAR>` prefix convention if you're adding a new variable.
-5. Install the apps' own dependencies: `cd api && composer install`, `cd web && bun install`, `cd mcp && bun install`.
-6. `cd api && bin/cake migrations migrate` (creates the schema against local Postgres — needs the Supabase stack up first, see step 7).
-7. `bun run dev` (repo root) — starts the Supabase local stack if it isn't already running, then the API, web, and MCP dev servers together (`bin/cake server` :8765, `bun run dev` in `web/` :3000, `bun run dev` in `mcp/` :8766).
+5. `cd api && bin/cake migrations migrate` (creates the schema against local Postgres — needs the Supabase stack up first, see step 6). Dependencies are already installed from step 1.
+6. `bun run dev` (repo root) — starts the Supabase local stack if it isn't already running, then the API, web, and MCP dev servers together (`bin/cake server` :8765, `bun run dev` in `web/` :3000, `bun run dev` in `mcp/` :8766).
 
 ### Day-to-day
 

@@ -2,6 +2,7 @@
   "name": "ollert",
   "private": true,
   "scripts": {
+    "postinstall": "bash scripts/install-all.sh",
     "dev": "bash scripts/ensure-supabase.sh && concurrently -n api,web,mcp -c green,magenta,cyan \"cd api && bin/cake server -p 8765\" \"cd web && bun run dev\" \"cd mcp && bun run dev\"",
     "dev:db": "bash scripts/ensure-supabase.sh",
     "dev:stop": "supabase stop",
