@@ -74,7 +74,7 @@ project's Postgres, not a self-hosted accessory on negrita. There's no
 string:
 
 ```sh
-DATABASE_URL=postgres://<user>:<password>@<host>:<port>/<database>?sslmode=require
+DATABASE_URL=postgres://<user>:<password>@<host>:<port>/<database>?ssl=true&ssl_mode=require
 ```
 
 Get the value from the Supabase dashboard: **Project Settings → Database →
@@ -91,6 +91,22 @@ string, not a missing extension — same PHP install, same `pdo_pgsql`,
 worked instantly after only the scheme changed. Hit this for real running
 the one-time schema migration below.
 
+**Also don't use `?sslmode=require`** (Supabase's own docs use that name,
+and an earlier version of this doc did too) — CakePHP's DSN parser merges
+query-string params into the config array verbatim as `sslmode`, but the
+Postgres driver's `connect()` only checks for `ssl` (bool) + `ssl_mode`
+(string) keys, so `sslmode=require` silently does nothing; CakePHP never
+sees it. Confirmed live: without `ssl`/`ssl_mode` set, the connection was
+still encrypted (PDO_PGSQL's default `sslmode=prefer` opportunistically
+negotiated TLS 1.3 since Supabase's pooler supports it — checked via
+`psql`'s `\conninfo`, not `pg_stat_ssl` off `pg_backend_pid()`, which
+reports the pooler's own backend-to-Postgres connection, not the
+client-to-pooler one that actually crosses the public internet). So this
+isn't "traffic was plaintext" — it's that `prefer` mode permits a silent
+downgrade to plaintext if something ever blocks TLS negotiation (a
+misconfigured network path, a MITM), without erroring. `ssl=true` +
+`ssl_mode=require` (the keys above) make it fail closed instead.
+
 Supabase offers a **direct connection** (port 5432) and a **pooled
 connection** via pgbouncer (transaction mode, port 6543, hostname prefixed
 `aws-0-...pooler...`).
@@ -105,11 +121,12 @@ have an IPv6 route) — used for the one-time schema migration below. The
 pooler (`aws-0-us-west-2.pooler.supabase.com:6543`) is IPv4-reachable and
 is what `.kamal/secrets`' `DATABASE_URL` actually uses; confirmed working
 end-to-end (`bin/cake migrations status` inside the deployed container
-shows all 6 migrations `up`). CakePHP's Postgres connections are
-non-persistent (`'persistent' => false` in `api/config/app.php`) which
-matches the transaction-mode pooler's model anyway, so this also happens
-to be the theoretically-right choice, not just the one that works around
-negrita's networking.
+shows all 6 migrations `up`). **Note (2026-08-30):** `api/config/app.php`'s
+Postgres connection is `'persistent' => true` (flipped from `false` the
+same day, to fix reconnect-per-request latency over the WAN — see the
+Dockerfile/CLAUDE.md history) — a persistent connection is still one
+logical connection per PHP-FPM worker, so it doesn't conflict with the
+transaction-mode pooler's own multiplexing either way.
 
 **Web build-time (local build, NOT `.kamal/secrets`):**
 The web SPA is built **locally** before `kamal deploy` (`bun run build` in
@@ -148,13 +165,15 @@ raises `LogicException: Key "DATABASE_URL" has already been defined`
 rather than overriding it. Source the local `.env` first (so every *other*
 required var is set), then override just this one:
 
-```sh
+```bash
 cd api
 PROD_DB_URL_RAW=<the connection string from .kamal/secrets or the dashboard>
 PROD_DB_URL="${PROD_DB_URL_RAW/postgresql:\/\//postgres://}"   # dashboard gives postgresql://, CakePHP needs postgres:// — see above
 set -a; source .env; DATABASE_URL="$PROD_DB_URL"; set +a
 bin/cake migrations migrate
 ```
+
+(Bash-specific syntax — `${VAR/pattern/replacement}` and `source` aren't POSIX `sh`. Run this with bash, not `sh`.)
 
 This is the entire "cutover" — there's no data to migrate (see
 `planning/supabase-migration.md#cutover-concern`), just schema creation
