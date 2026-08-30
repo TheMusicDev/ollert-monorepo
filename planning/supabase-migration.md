@@ -1,7 +1,7 @@
 ---
 type: Architecture
 title: Supabase Migration (All-In)
-description: Overhaul moving Ollert's app data from CakePHP-owned MySQL to Supabase Postgres, and adopting Supabase Storage + Realtime. Decided 2026-08-24; local-dev spine landed 2026-08-27, prod cutover pending.
+description: Overhaul moving Ollert's app data from CakePHP-owned MySQL to Supabase Postgres, and adopting Supabase Storage + Realtime. Decided 2026-08-24; complete 2026-08-30 (local spine 08-27, prod cutover 08-30).
 tags: [supabase, migration, storage, realtime, search]
 status: draft
 generated: { by: "claude-code/sonnet-5", at: "2026-08-24T00:00:00Z" }
@@ -9,7 +9,7 @@ generated: { by: "claude-code/sonnet-5", at: "2026-08-24T00:00:00Z" }
 
 # Summary
 
-Ollert today runs CakePHP-owned MySQL for app data and uses Supabase for auth only (see [Architecture](architecture.md)). This concept records the decision to go **all-in on Supabase**: move the relational data to Supabase's hosted Postgres, and adopt Supabase Storage + Realtime alongside the existing Supabase Auth. **Decided 2026-08-24.** **2026-08-27: the spine (DB swap) landed locally** — CakePHP runs against the Supabase CLI local stack end-to-end (migrations, JWT auth, JIT provisioning, full org/board/list/card CRUD verified manually). Prod (negrita) still runs MySQL; the deploy cutover is separate, deliberately deferred, and — per user decision — nukes negrita's current setup and rebuilds rather than migrating live data (see Cutover below, which this simplifies). [Architecture](architecture.md) and [Data Model](data-model.md) have been updated to describe Postgres as the current local-dev state. Decision recorded in [Change log](log.md) 2026-08-24 (cont.) and 2026-08-27 — this reverses the 2026-08-19 "app data in CakePHP-owned MySQL, not Supabase Postgres" key decision.
+Ollert used to run CakePHP-owned MySQL for app data and Supabase for auth only (see [Architecture](architecture.md)). This concept records the decision to go **all-in on Supabase**: move the relational data to Supabase's hosted Postgres, and adopt Supabase Storage + Realtime alongside the existing Supabase Auth. **Decided 2026-08-24, complete 2026-08-30.** **2026-08-27: the spine (DB swap) landed locally** — CakePHP ran against the Supabase CLI local stack end-to-end (migrations, JWT auth, JIT provisioning, full org/board/list/card CRUD verified manually). **2026-08-30: prod cutover done** — negrita's API redeployed against the same hosted Postgres project (via the connection pooler, not Supabase's direct connection — negrita's Docker containers have no IPv6 route out, and the direct connection is IPv6-only), old MariaDB accessory removed, no data carried over (there was none worth carrying, per the decision below). No MySQL left anywhere in the stack. [Architecture](architecture.md) and [Data Model](data-model.md) reflect Postgres as the current state everywhere, not just local. Decision recorded in [Change log](log.md) 2026-08-24 (cont.), 2026-08-27, and 2026-08-30 — this reverses the 2026-08-19 "app data in CakePHP-owned MySQL, not Supabase Postgres" key decision.
 
 # The spine: MySQL → Postgres migration
 
@@ -18,9 +18,9 @@ Ollert today runs CakePHP-owned MySQL for app data and uses Supabase for auth on
 * **Schema/types** — native Postgres `uuid` PKs (not `char(36)`). Turned out to need zero changes: the existing `cakephp/migrations` phinx files already used DB-agnostic abstract types (`uuid`, `string`, `integer`, `datetime`), so this was a pure connection/driver swap, not a schema rewrite. See [Data Model](data-model.md) for the current schema.
 * **Migration files** — unchanged; `bin/cake migrations migrate` ran all 6 migrations against a fresh local Postgres with no edits needed.
 * **MySQL-specific query syntax** — none found. Grepped `api/src/Controller`/`Service`/`Model` before starting; everything goes through CakePHP's query builder, no raw SQL, no MySQL-isms to port.
-* **Local dev setup** — `docker/docker-compose.yml` (MariaDB 11.8 + Mailpit) is superseded by the Supabase CLI local stack (see [Local dev](#local-dev) below). Not yet deleted — see `post-merge.md`.
+* **Local dev setup** — `docker/docker-compose.yml` (MariaDB 11.8 + Mailpit) is superseded by the Supabase CLI local stack (see [Local dev](#local-dev) below). Deleted 2026-08-29.
 
-Prod (negrita) cutover is the only remaining piece — see Cutover below.
+Prod (negrita) cutover done too — see Cutover below.
 
 Auth is **unchanged**: `verifyToken.ts` + `AuthMiddleware.php` keep their current JWKS check against the same Supabase project, regardless of where the app data lives. The MCP server is unchanged for the same reason.
 
@@ -40,7 +40,9 @@ Three features that were deferred or blocked become cheap once the data is in Po
 
 # Cutover concern
 
-There is live team data on negrita today, but **resolved 2026-08-27: no data-migration plan needed.** User decided to nuke whatever is on negrita and rebuild the deploy from scratch rather than export/transform/load the existing MySQL data into Postgres. This removes the parity-validation + rollback-path work that would otherwise make this a project rather than a schema swap — the remaining deploy work is provisioning fresh negrita infra (Postgres via Supabase, updated `api/config/deploy*.yml` kamal configs, updated env) and pointing it at whichever Supabase project holds prod data, not migrating anything. Deploy is intentionally deferred until local dev is solid — see [Roadmap](roadmap.md).
+There was live team data on negrita, but **resolved 2026-08-27: no data-migration plan needed.** User decided to nuke whatever was on negrita and rebuild the deploy from scratch rather than export/transform/load the existing MySQL data into Postgres. This removed the parity-validation + rollback-path work that would otherwise have made this a project rather than a schema swap.
+
+**Done 2026-08-30.** Ran the one-time schema migration against the `mlowpaysruhaxowhsuva` project's hosted Postgres (all 6 migrations, verified with `bin/cake migrations status`), removed the orphaned `ollert-api-db` MariaDB accessory container and its bind-mount data directory on negrita (accessory `directories:` use plain host bind-mounts, not docker volumes — `docker inspect <container> --format '{{json .Mounts}}'` to find the real path, `docker volume ls` won't show it), and redeployed `config/deploy.api.yml`. Two gotchas hit along the way, both logged in `CLAUDE.md`: Supabase's dashboard gives a `postgresql://` scheme that CakePHP doesn't recognize (needs `postgres://`); and Supabase's **direct** Postgres connection is IPv6-only, which negrita's Docker containers can't reach (no IPv6 route) — switched to Supabase's connection **pooler** instead, which is IPv4-reachable and also matches CakePHP's non-persistent connection shape. Verified live: `/health` 200, migrations `up` inside the running container.
 
 # Local dev
 
