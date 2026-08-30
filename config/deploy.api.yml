@@ -2,8 +2,9 @@
 #   kamal deploy -c config/deploy.api.yml
 #
 # One-time setup before first deploy: see DEPLOYMENT.md
-# (stand up registry:2 on negrita, boot the db accessory, fill .kamal/secrets,
-#  configure cloudflared: `*.2719.fyi -> http://localhost:80` wildcard).
+# (stand up registry:2 on negrita, create the schema on hosted Supabase
+#  Postgres, fill .kamal/secrets, configure cloudflared:
+#  `*.2719.fyi -> http://localhost:80` wildcard).
 
 service: ollert-api
 image: ollert-api
@@ -59,6 +60,10 @@ env:
     # The web origin allowed to call the API (CORS allow-list).
     CORS_ALLOWED_ORIGINS: https://ollert.2719.fyi
   secret:
+    # Hosted Supabase Postgres connection string (postgres://...?sslmode=require)
+    # — see DEPLOYMENT.md's "API DB connection" section. Not a same-host
+    # MariaDB accessory anymore (that block + the ollert-db volume were
+    # removed 2026-08-29 as part of the Supabase migration).
     - DATABASE_URL
     - SECURITY_SALT
     # Project-ref is baked into these URLs; keep the full URL in secrets so
@@ -87,20 +92,9 @@ proxy:
   run:
     http_port: 80
 
-# MariaDB, booted once and left alone across app deploys
-# (kamal accessory boot db -c config/deploy.api.yml). Persistent data lives
-# in the ollert-db named volume on negrita.
-accessories:
-  db:
-    image: mariadb:11.8
-    host: 192.168.1.20          # bare host; user comes from ssh: block above
-    port: "127.0.0.1:3306:3306"   # only reachable from negrita itself
-    env:
-      clear:
-        MYSQL_DATABASE: ollert
-        MYSQL_USER: ollert
-      secret:
-        - MYSQL_ROOT_PASSWORD
-        - MYSQL_PASSWORD
-    directories:
-      - ollert-db:/var/lib/mysql
+# No accessories: app data lives in Supabase's hosted Postgres (see
+# planning/supabase-migration.md), not a self-hosted DB container on negrita.
+# The old MariaDB accessory + ollert-db volume were removed here 2026-08-29 —
+# if that volume still exists on negrita from before the migration, it's
+# safe to `docker volume rm ollert-db` once you've confirmed nothing else
+# reads it (see post-merge.md).

@@ -9,8 +9,8 @@ Lives at the repo root as its own package: no code-level import coupling to
 
 ## Prerequisites
 
-1. **Docker services** — `docker compose up -d` from `docker/` (MariaDB +
-   Mailpit). Check `docker ps` first; they're often already running.
+1. **Supabase local stack** — `supabase start` from the repo root. Check
+   `supabase status` first; it's often already running.
 2. **API** — from `api/`: `bin/cake migrations migrate` (once), then
    `bin/cake server -p 8765`.
 3. **Web** — from `web/`: `bun run dev` (serves on port 3000).
@@ -22,8 +22,8 @@ If you'd rather not juggle three terminals: `playwright.config.ts` declares
 both the API and web dev servers as Playwright `webServer` entries with
 `reuseExistingServer: true` outside CI. If they're already running (steps 2–3
 above), Playwright talks to those; if not, it starts them itself and tears
-them down after the run. Docker still needs to be up either way — Playwright
-doesn't manage that.
+them down after the run. The Supabase stack still needs to be up either way —
+Playwright doesn't manage that.
 
 ## Configure
 
@@ -114,10 +114,12 @@ this project's actual Supabase configuration:
 * The project has **email confirmation required** (`signUp()` returns
   `data.session: null`, which is exactly the branch `web/src/routes/signup.tsx`
   handles with its "Check your email" screen). No inbox is reachable from
-  this environment to click that link, and `docker/`'s Mailpit only catches
-  mail CakePHP itself sends — it does **not** intercept Supabase's own
-  hosted auth email (`planning/architecture.md#local-development` already
-  calls this out).
+  this environment to click that link — this applies to the **hosted**
+  Supabase project; if `SUPABASE_URL` instead points at the local Supabase
+  CLI stack (`supabase/config.toml` has `enable_confirmations = false` by
+  default), signups don't require confirmation at all and this whole
+  workaround may not be needed — untested, not revisited as part of the
+  MySQL→Postgres migration (see `post-merge.md`).
 * Worse, the project's outbound email is on Supabase's shared/free-tier
   sender, which has a very low built-in rate limit. In manual testing while
   building this suite, **two consecutive signup attempts** were enough to

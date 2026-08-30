@@ -67,20 +67,26 @@ is the safe template and is committed. Fill every `CHANGE_ME` / `<placeholder>`:
 - `SUPABASE_JWKS_URL` / `SUPABASE_JWT_ISS` — put your project ref where
   `<project-ref>` is.
 
-**MariaDB accessory + API DB connection (the part that confuses everyone):**
-You pick **one** password and use it in **two** places, because kamal passes
-your `MYSQL_PASSWORD` to MariaDB when it boots the DB, and CakePHP must log
-in with the same password:
+**API DB connection (post Supabase migration — 2026-08-29, see
+`planning/supabase-migration.md`):** app data lives in the hosted Supabase
+project's Postgres, not a self-hosted accessory on negrita. There's no
+`MYSQL_ROOT_PASSWORD`/`MYSQL_PASSWORD` dance anymore — just one connection
+string:
+
 ```sh
-MYSQL_ROOT_PASSWORD=<anything>
-MYSQL_PASSWORD=hunter2
-DATABASE_URL=mysql://ollert:hunter2@ollert-api-db:3306/ollert
-#                         ^^^^^^ same value as MYSQL_PASSWORD
+DATABASE_URL=postgres://<user>:<password>@<host>:<port>/<database>?sslmode=require
 ```
-The host `ollert-api-db` is fixed — it's the accessory's container DNS name
-on the kamal network (verified), not `localhost`. The user `ollert` and db
-`ollert` are already set in `deploy.api.yml`'s accessory `env.clear`; you
-only choose the passwords.
+
+Get the exact value from the Supabase dashboard: **Project Settings →
+Database → Connection string**. Supabase offers a **direct connection**
+(port 5432) and a **pooled connection** via pgbouncer (transaction mode,
+port 6543, hostname prefixed `aws-0-...pooler...`). CakePHP's Postgres
+connections here are non-persistent (`'persistent' => false` in
+`api/config/app.php`, opened fresh per request) — that shape matches the
+transaction-mode pooler's model, so start there; fall back to the direct
+connection if the pooler's prepared-statement handling causes issues with
+CakePHP's ORM. **Not verified against the real hosted project yet** — confirm
+whichever you pick actually works before relying on it (see post-merge.md).
 
 **Web build-time (local build, NOT `.kamal/secrets`):**
 The web SPA is built **locally** before `kamal deploy` (`bun run build` in
@@ -88,13 +94,16 @@ The web SPA is built **locally** before `kamal deploy` (`bun run build` in
 `web/.env`; `bun run build` (mode=production) reads `web/.env` **then**
 `web/.env.production` (later overrides). So the two env files split by what
 differs between dev and prod:
-- `web/.env` (gitignored; copy `web/.env.example`) — holds the **shared**
-  values + dev API URL: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`
-  (one Supabase project for dev+prod, same in both), and
-  `VITE_API_BASE_URL=http://localhost:8765/api` (dev).
-- `web/.env.production` (gitignored) — holds just the **prod** override:
-  `VITE_API_BASE_URL=https://ollert-api.2719.fyi/api`. Nothing else —
-  Supabase vars carry through from `web/.env`.
+- `web/.env` (gitignored; copy `web/.env.example`) — holds the **dev**
+  values: `VITE_SUPABASE_URL`/`VITE_SUPABASE_PUBLISHABLE_KEY` for the
+  Supabase CLI local stack, and `VITE_API_BASE_URL=http://localhost:8765/api`.
+- `web/.env.production` (gitignored) — holds the **prod** overrides:
+  `VITE_API_BASE_URL=https://ollert-api.2719.fyi/api` **and**
+  `VITE_SUPABASE_URL`/`VITE_SUPABASE_PUBLISHABLE_KEY` for the real hosted
+  Supabase project. **Changed 2026-08-29** (post Supabase migration): dev
+  and prod no longer share one Supabase project — dev is the local CLI
+  stack, prod is hosted — so unlike before, Supabase vars must be overridden
+  here too, not just the API URL.
 
 The VITE_ vars are public (publishable key + Supabase URL ship in the client
 bundle), so no build-secret machinery. **Without `.env.production`, the prod
@@ -104,15 +113,23 @@ TanStack Start's SPA prerender spins up a vite preview server that fails to
 bind under the bun Nitro preset inside docker (ConnectionRefused
 localhost:3000, 0 pages prerendered); building locally works.
 
-### 3. Boot the database (once)
+### 3. Create the schema on hosted Postgres (once)
+
+No accessory to boot — the database already exists, hosted by Supabase.
+One-time schema creation, run from any machine with the prod `DATABASE_URL`
+(e.g. locally, pointed at prod temporarily):
 
 ```sh
-kamal accessory boot db -c config/deploy.api.yml
+cd api && DATABASE_URL=<prod connection string> bin/cake migrations migrate
 ```
 
-Persistent data lives in the `ollert-db` named volume on negrita and survives
-app deploys. `DATABASE_URL` must point at `ollert-api-db:3306` with the
-`MYSQL_PASSWORD` you set.
+This is the entire "cutover" — there's no data to migrate (see
+`planning/supabase-migration.md#cutover-concern`), just schema creation
+against an empty database. After this, `api/docker-entrypoint.sh` re-runs
+`bin/cake migrations migrate` on every deploy (idempotent, see "How
+migrations run" below) — this one-time step just gets the first deploy's
+entrypoint past an otherwise-empty database faster and lets you verify the
+schema lands correctly before trusting a live deploy to do it.
 
 ### 4. cloudflared + DNS (once)
 
@@ -156,14 +173,19 @@ back to **Site URL**. So the allow-list is what matters — `redirectTo` wins
 when it's listed.
 
 Our `web/src/lib/auth-context.tsx` `authCallbackUrl()` sets `redirectTo` =
-`${window.location.origin}/auth/callback` — so it's already per-environment
-(prod origin on prod, localhost on dev). Just allow-list both:
+`${window.location.origin}/auth/callback` — per-environment by construction,
+but **since the 2026-08-29 Supabase migration, dev no longer talks to this
+hosted project at all** — local dev uses the Supabase CLI local stack's own
+separate Auth instance (`supabase/config.toml`'s own
+`site_url`/`additional_redirect_urls`, currently `http://localhost:3000/...`
+— see that file, not this dashboard). So this hosted project's allow-list
+only needs the **prod** entry:
 
 - **Site URL** → `https://ollert.2719.fyi` (only the fallback; used when a
   `redirectTo` isn't allowed. Sane default = prod. Set and forget.)
-- **Redirect URLs** (allow-list) → add BOTH:
-  - `https://ollert.2719.fyi/auth/callback` (prod)
-  - `http://localhost:3000/auth/callback` (dev — keep)
+- **Redirect URLs** (allow-list) → add `https://ollert.2719.fyi/auth/callback`
+  only. Drop `http://localhost:3000/auth/callback` from it if it's still
+  there from before the migration — dev no longer needs it here.
 - **Email Templates → Recovery** → leave the default
   `{{ .SiteURL }}` / `{{ .ConfirmationURL }}` (don't hardcode a host).
 
@@ -171,13 +193,6 @@ Path: Dashboard → project → **Authentication → URL Configuration** (direct
 `https://supabase.com/dashboard/project/_/auth/url-configuration`). Site URL
 is a text field; Redirect URLs is an input + **Add URL** button → each
 entry becomes a chip/row → **Save** at the bottom.
-
-**One project is enough for dev + prod of this app.** Because `redirectTo`
-is per-environment and both values are allow-listed, each environment's
-reset emails land on the right host. The earlier "two projects for
-per-env links" idea was wrong — Site URL is a fallback, not the link base.
-(One project per *app* is still right; dev + prod of the *same* app share
-one project.)
 
 ### 5. Deploy
 
@@ -203,14 +218,17 @@ kamal deploy -c config/deploy.api.yml
 ```
 
 That's it. Both are zero-downtime (kamal-proxy swaps to the new container,
-drains the old). The DB accessory is **not** touched by app deploys.
+drains the old). There's no DB accessory on negrita anymore to worry about —
+the database is Supabase-hosted and outlives any app deploy or container
+restart by construction.
 
 ---
 
 ## How migrations run
 
 `api/docker-entrypoint.sh` runs `bin/cake migrations migrate` before
-php-fpm starts. Single replica on negrita → no race. Phinx migrations are
+php-fpm starts, against whatever `DATABASE_URL` points at (Supabase-hosted
+Postgres in prod). Single replica on negrita → no race. Phinx migrations are
 idempotent. If a migration fails, the container exits, kamal's healthcheck
 fails, and the deploy rolls back. If a migration ever becomes
 breaking/long, switch to a kamal `before_deploy` hook instead.
@@ -219,12 +237,11 @@ breaking/long, switch to a kamal `before_deploy` hook instead.
 
 ## App ↔ DB networking
 
-The app container reaches MariaDB at `ollert-api-db:3306` — kamal names the
-accessory `<service>-<accessory>` and puts app + accessory on the same
-`kamal` docker network, so the name resolves via Docker DNS. That's why
-`DATABASE_URL` uses `ollert-api-db`, not `127.0.0.1`. The accessory's
-`127.0.0.1:3306:3306` publish is only for host-side access (ad-hoc `mysql`
-cli on negrita), not for the app container.
+The app container reaches Postgres over the internet at whatever host
+`DATABASE_URL` names (Supabase's hosted endpoint or pooler) — not a
+same-host Docker-network accessory like the old MariaDB setup. No special
+kamal networking involved; it's an outbound connection like any external
+API call, gated by `sslmode=require`.
 
 ---
 
@@ -235,11 +252,6 @@ cli on negrita), not for the app container.
 kamal app exec -c config/deploy.api.yml --reuse "bin/cake migrations status"
 kamal app logs -c config/deploy.api.yml
 kamal app roles -c config/deploy.api.yml
-
-# accessory lifecycle (not part of app deploys)
-kamal accessory boot db -c config/deploy.api.yml      # first time
-kamal accessory reboot db -c config/deploy.api.yml   # restart
-kamal accessory upgrade db -c config/deploy.api.yml  # new MariaDB image
 
 # stop / remove an app
 kamal app stop -c config/deploy.api.yml

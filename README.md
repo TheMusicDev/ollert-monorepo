@@ -6,18 +6,56 @@ Full architecture, schema, API contract, and decision history live in the OKF pl
 
 ## Repo layout
 
-```
+```text
 ollert/
   api/          # CakePHP backend
   web/          # TanStack Start frontend
+  mcp/          # MCP server (Supabase-JWT-authed tool access)
   e2e/          # Playwright end-to-end tests
-  docker/       # local dev services (MariaDB, Mailpit)
+  supabase/     # Supabase CLI local stack config (supabase start)
   planning/     # OKF knowledge bundle
 ```
 
 ## Local development
 
-See [`planning/architecture.md#local-development`](planning/architecture.md#local-development) for the full setup. Short version: `docker compose up -d` (from `docker/`), `bin/cake server` (from `api/`), `bun run dev` (from `web/`).
+See [`planning/architecture.md#local-development`](planning/architecture.md#local-development) for the full picture.
+
+### Prerequisites
+
+- **PHP 8.5** + **Composer** (`api/`).
+- **Bun v1.3.14** (`web/`, `mcp/`) — install it yourself, pinned to match `package.json`'s `packageManager`: `curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.14"`, then verify with `bun --version`. `packageManager` itself only declares the version for tooling that reads it (like `oven-sh/setup-bun` in CI); Bun doesn't auto-switch to it locally, which is why the install command needs the version pinned explicitly.
+- **Docker** (Supabase CLI's local stack runs as ~9 containers) and the **Supabase CLI**: `brew install supabase/tap/supabase`.
+
+### First-time setup
+
+1. `bun install` (repo root) — installs `concurrently`, which `bun dev` uses to run everything below together.
+2. `supabase init` — already done, `supabase/config.toml` is checked in. Skip.
+3. Generate your own local RS256 signing key (gitignored, one per dev — see `CLAUDE.md` Learnings 2026-08-27/29 for why this is needed instead of the CLI's HS256 default, and a gotcha with the command below). `supabase gen signing-key` requires the target file to already exist (even with `--append`), so seed an empty array first:
+   ```sh
+   echo '[]' > supabase/signing_keys.json
+   supabase gen signing-key --algorithm RS256 --append
+   ```
+   (Don't pipe this command through `head`/`tail` — it's an interactive TUI and closing the pipe early crashes it with an `EPIPE`. Run it plain.)
+4. One root `.env` instead of five scattered ones:
+   ```sh
+   cp .env.example .env
+   $EDITOR .env        # local-dev defaults are already filled in; mainly just set API__SECURITY_SALT
+   bun run env         # writes api/.env, web/.env, mcp/.env, e2e/.env, .kamal/secrets from .env
+   ```
+   `bun run env` skips any target file that already exists — pass `-f`/`--force` (as `bun run env -- --force`) to regenerate one you've hand-edited since. See `.env.example`'s own header comment for the `<TARGET>__<VAR>` prefix convention if you're adding a new variable.
+5. Install the apps' own dependencies: `cd api && composer install`, `cd web && bun install`, `cd mcp && bun install`.
+6. `cd api && bin/cake migrations migrate` (creates the schema against local Postgres — needs the Supabase stack up first, see step 7).
+7. `bun run dev` (repo root) — starts the Supabase local stack if it isn't already running, then the API, web, and MCP dev servers together (`bin/cake server` :8765, `bun run dev` in `web/` :3000, `bun run dev` in `mcp/` :8766).
+
+### Day-to-day
+
+Once set up, you don't repeat the above — just:
+
+- `bun run dev` (repo root) — starts Supabase (if needed) + api + web + mcp together. `Ctrl-C` stops all three; Supabase itself keeps running.
+- `bun run dev:stop` when you want Supabase's containers down too — data persists in the Postgres volume across a stop/start cycle, so you keep your local users/orgs/boards.
+- Individual pieces if you don't want all three: `bun run dev:api`, `bun run dev:web`, `bun run dev:mcp`, `bun run dev:db` (just Supabase).
+
+`supabase/signing_keys.json` is a plain local file, not managed by Supabase's own lifecycle — `supabase stop`/`start` and even `supabase db reset` (which does recreate the Postgres container and wipe its data, so you'll need to re-run `bin/cake migrations migrate` after one) all leave it untouched, verified directly. Only redo step 3 if the file doesn't exist yet (fresh clone) or you've deleted/rotated it yourself. The printed URLs/keys in step 4 are stable too unless you fully delete and re-`supabase init` the project.
 
 ## CI
 
