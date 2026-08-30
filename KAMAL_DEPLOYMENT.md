@@ -353,9 +353,17 @@ Specific to a `php:8.x-fpm-alpine` + nginx + php-fpm-in-one-container image:
   mbstring, ctype, simplexml, xml, dom, opcache, PDO, curl. Running
   `docker-php-ext-install` on any of these →
   `cp: can't stat 'modules/*'` (nothing to build). Only add what's missing.
-- **CakePHP 5 requires:** mbstring, intl, pdo, simplexml (+ pdo_mysql for
-  MySQL). Of those, only `intl` (needs `icu-dev`) and `pdo_mysql` (uses
-  built-in mysqlnd, needs nothing) must be added.
+- **CakePHP 5 requires:** mbstring, intl, pdo, simplexml (+ the PDO driver
+  for whichever DB engine is actually in use — easy to get wrong when a
+  project switches DB engines later, since nothing fails until deploy).
+  `pdo_mysql` (MySQL/MariaDB) needs nothing extra, built-in mysqlnd.
+  `pdo_pgsql` (Postgres) needs `postgresql-dev` (libpq headers) added to
+  `apk add` alongside `icu-dev` — omitting it doesn't fail the build, it
+  just silently ships a container that can't connect to Postgres at
+  runtime. Hit exactly this switching Ollert's API from MySQL to Postgres
+  (2026-08-29): the Dockerfile still said `pdo_mysql` after the DB driver
+  config already said `Postgres::class` — caught by actually building the
+  image and running `php -m` inside it, not by any earlier step.
 - **Don't `apk del icu-dev` after building intl.** `intl.so` links the ICU
   shared libraries at runtime; removing `icu-dev` removes those libs and
   intl fails to load. Keep `icu-dev icu-data-en` in the final image (small).

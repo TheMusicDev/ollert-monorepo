@@ -8,12 +8,15 @@ FROM php:8.5-fpm-alpine
 # No supervisor — nginx in background, php-fpm is the foreground PID.
 # php:8.5-fpm-alpine already ships static: mbstring, intl? no — only these
 # are baked in: mbstring, ctype, simplexml, xml, dom, opcache, PDO, curl.
-# We only ADD intl (needs icu-dev) + pdo_mysql (needs nothing, uses mysqlnd).
+# We ADD intl (needs icu-dev) + pdo_pgsql (needs postgresql-dev for libpq,
+# unlike pdo_mysql which needed nothing — swapped from pdo_mysql 2026-08-29
+# as part of the Supabase/Postgres migration, see planning/supabase-migration.md).
 RUN apk add --no-cache \
         nginx \
         icu-dev icu-data-en \
+        postgresql-dev \
     && docker-php-ext-install -j"$(nproc)" \
-        pdo_mysql intl
+        pdo_pgsql intl
 
 # Copy composer from the official image — do NOT `apk add composer`, that
 # pulls Alpine's system php85 (a second PHP at /etc/php85) which has no intl
