@@ -40,6 +40,11 @@ RUN mkdir -p tmp logs && chown -R www-data:www-data tmp logs
 # nginx config — CakePHP's webroot is the doc root, FastCGI to php-fpm:9000.
 COPY docker/nginx.conf /etc/nginx/http.d/default.conf
 
+# Adds request duration to php-fpm's access log (default format has none —
+# these are the logs `docker logs`/`kamal app logs` actually show, not
+# nginx's; php-fpm proxies the request start-to-finish itself).
+COPY docker/php-fpm-logging.conf /usr/local/etc/php-fpm.d/php-fpm-logging.conf
+
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
