@@ -23,7 +23,7 @@ See [`planning/architecture.md#local-development`](planning/architecture.md#loca
 ### Prerequisites
 
 - **PHP 8.5** + **Composer** (`api/`).
-- **Bun v1.3.14** (`web/`, `mcp/`) — install it yourself (e.g. `curl -fsSL https://bun.sh/install | bash`). `packageManager` in each `package.json` declares the pinned version for tooling that reads it (like `oven-sh/setup-bun` in CI); Bun itself doesn't auto-switch to it locally.
+- **Bun v1.3.14** (`web/`, `mcp/`) — install it yourself, pinned to match `package.json`'s `packageManager`: `curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.14"`, then verify with `bun --version`. `packageManager` itself only declares the version for tooling that reads it (like `oven-sh/setup-bun` in CI); Bun doesn't auto-switch to it locally, which is why the install command needs the version pinned explicitly.
 - **Docker** (Supabase CLI's local stack runs as ~9 containers) and the **Supabase CLI**: `brew install supabase/tap/supabase`.
 
 ### First-time setup
