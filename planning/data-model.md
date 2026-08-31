@@ -101,6 +101,21 @@ Columns on a board (e.g. "To Do", "In Progress", "Done").
 | due_date | date, nullable | |
 | position | float or int | for drag-drop ordering within a list |
 
+## audit_logs
+
+Added 2026-08-30 alongside the admin feature (#20) — see [API contract](api-contract.md#audit-log). Append-only: unlike every other table here, no `modified` column and no `TrashBehavior` — a row is written once by `App\Service\AuditLogService` and never updated or deleted.
+
+| field | type | notes |
+|---|---|---|
+| id | uuid, PK | |
+| actor_id | uuid, FK -> users.id | who performed the action |
+| org_id | uuid, FK -> organizations.id, nullable | null for actions with no natural org scope (e.g. an admin's quota override on `PATCH /api/admin/users/:id`) |
+| resource_type | varchar | `organization`\|`org_member`\|`board`\|`list`\|`card`\|`user` |
+| resource_id | uuid, no FK | polymorphic — which table it points to depends on `resource_type`, so no single FK constraint applies |
+| action | varchar | `create`\|`update`\|`delete` |
+| changes | text (JSON) | `{ field: { from, to } }` — every `from` is `null` for a `create`, every `to` is `null` for a `delete` |
+| created | datetime | |
+
 # Ordering (drag-drop)
 
 Use a float `position` column (fractional indexing: new position = midpoint of neighbors) rather than an integer rank that requires re-numbering siblings on every reorder. Moving a card/list only touches the one row being moved. The first card/list in an otherwise-empty list/board has no neighbors to midpoint against — bootstrap it to `1.0`; every insert after that has at least one neighbor.

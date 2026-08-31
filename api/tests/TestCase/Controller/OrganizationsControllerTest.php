@@ -27,7 +27,9 @@ class OrganizationsControllerTest extends TestCase
     /**
      * @var array<string>
      */
-    protected array $fixtures = ['app.Users', 'app.Organizations', 'app.OrgMembers', 'app.Boards'];
+    protected array $fixtures = [
+        'app.Users', 'app.Organizations', 'app.OrgMembers', 'app.Boards', 'app.AuditLogs',
+    ];
 
     private const OWNER_ID = '10000000-0000-4000-8000-000000000001';
 

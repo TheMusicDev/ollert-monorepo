@@ -49,7 +49,7 @@ class CsrfApiScopeIntegrationTest extends TestCase
      *
      * @var array<string>
      */
-    protected array $fixtures = ['app.Users', 'app.Organizations'];
+    protected array $fixtures = ['app.Users', 'app.Organizations', 'app.AuditLogs'];
 
     private const ISS = 'https://test-project.supabase.co/auth/v1';
 

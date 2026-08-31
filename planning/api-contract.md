@@ -60,6 +60,17 @@ Admin endpoints (feature #20, moved up 2026-08-24). Gated: the caller's resolved
 
 Pagination of the user list is settled — same `?page=`/`?limit=` shape with `{ data, meta }` envelope (see Pagination below).
 
+## Audit Log
+
+Implemented alongside the admin feature (2026-08-30): every create/update/delete across organizations, org members, boards, lists, and cards, plus admin's own `PATCH /api/admin/users/:id` actions, writes an append-only `audit_logs` row (see [Data Model](data-model.md#audit_logs)) via `App\Service\AuditLogService`, called directly from each controller action right after the mutation succeeds (a failed save never produces a log entry). Full before/after field diffs, not just an action label — `changes` is `{ field: { from, to } }`, with `from: null` on every field for a `create` and `to: null` on every field for a `delete`.
+
+Two-tier read access, closing the visibility gap [permissions.md](permissions.md) flagged for org owners:
+
+* `GET /api/admin/audit-logs` - platform admins only (403 `not_admin` otherwise), paginated, every org, newest first.
+* `GET /api/orgs/:id/audit-logs` - that org's owner only (403 `not_org_owner` otherwise), paginated, scoped to `org_id`.
+
+Both return the same row shape: `id`, `actor` (`{ id, email, display_name }`), `org_id` (null for org-less actions like an admin's quota override), `resource_type` (`organization`|`org_member`|`board`|`list`|`card`|`user`), `resource_id`, `action` (`create`|`update`|`delete`), `changes`, `created`.
+
 # Conventions
 
 * All mutating endpoints return the updated/created resource as JSON.

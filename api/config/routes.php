@@ -100,6 +100,8 @@ return function (RouteBuilder $routes): void {
         $builder->delete('/orgs/{id}', ['controller' => 'Organizations', 'action' => 'delete'])->setPass(['id']);
 
         // Org Members
+        $builder->get('/orgs/{id}/audit-logs', ['controller' => 'AuditLogs', 'action' => 'orgIndex'])
+            ->setPass(['id']);
         $builder->get('/orgs/{id}/members', ['controller' => 'OrgMembers', 'action' => 'index'])
             ->setPass(['id']);
         $builder->post('/orgs/{id}/members', ['controller' => 'OrgMembers', 'action' => 'add'])
@@ -135,5 +137,11 @@ return function (RouteBuilder $routes): void {
         $builder->get('/cards/{id}', ['controller' => 'Cards', 'action' => 'view'])->setPass(['id']);
         $builder->patch('/cards/{id}', ['controller' => 'Cards', 'action' => 'edit'])->setPass(['id']);
         $builder->delete('/cards/{id}', ['controller' => 'Cards', 'action' => 'delete'])->setPass(['id']);
+
+        // Admin
+        $builder->get('/admin/users', ['controller' => 'AdminUsers', 'action' => 'index']);
+        $builder->patch('/admin/users/{id}', ['controller' => 'AdminUsers', 'action' => 'edit'])
+            ->setPass(['id']);
+        $builder->get('/admin/audit-logs', ['controller' => 'AuditLogs', 'action' => 'adminIndex']);
     });
 };

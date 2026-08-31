@@ -8,6 +8,7 @@ use App\Model\Entity\Card;
 use App\Model\Table\CardsTable;
 use App\Model\Table\ListsTable;
 use App\Model\Table\UsersTable;
+use App\Service\AuditLogService;
 use App\Service\OrgAuthorizationService;
 use App\Service\QuotaService;
 use Cake\Database\Driver\Sqlite;
@@ -40,6 +41,11 @@ class CardsController extends AppController
      * @var \App\Service\OrgAuthorizationService|null
      */
     private ?OrgAuthorizationService $orgAuthorization = null;
+
+    /**
+     * @var \App\Service\AuditLogService|null
+     */
+    private ?AuditLogService $auditLogService = null;
 
     /**
      * `index`/`view` render through JsonView + `serialize` (paginated
@@ -173,6 +179,15 @@ class CardsController extends AppController
             },
         );
 
+        $this->auditLogService()->write(
+            $userId,
+            $orgId,
+            'card',
+            (string)$card->id,
+            'create',
+            $this->auditLogService()->diffForCreate($card),
+        );
+
         return $this->jsonResponse($card, 201);
     }
 
@@ -217,7 +232,10 @@ class CardsController extends AppController
         $cardsTable->patchEntity($card, $data, [
             'fields' => ['title', 'description', 'due_date', 'position', 'list_id'],
         ]);
+        $diff = $this->auditLogService()->diffForUpdate($card);
         $card = $cardsTable->saveOrFail($card);
+
+        $this->auditLogService()->write($userId, $currentOrgId, 'card', (string)$card->id, 'update', $diff);
 
         return $this->jsonResponse($card, 200);
     }
@@ -239,7 +257,10 @@ class CardsController extends AppController
 
         $this->assertOrgMember($userId, $orgId);
 
+        $diff = $this->auditLogService()->diffForDelete($card);
         $this->fetchCardsTable()->delete($card);
+
+        $this->auditLogService()->write($userId, $orgId, 'card', (string)$card->id, 'delete', $diff);
 
         return $this->jsonResponse(null, 204);
     }
@@ -277,6 +298,14 @@ class CardsController extends AppController
     private function orgAuthorizationService(): OrgAuthorizationService
     {
         return $this->orgAuthorization ??= new OrgAuthorizationService();
+    }
+
+    /**
+     * @return \App\Service\AuditLogService
+     */
+    private function auditLogService(): AuditLogService
+    {
+        return $this->auditLogService ??= new AuditLogService();
     }
 
     /**

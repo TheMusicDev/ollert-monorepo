@@ -85,6 +85,15 @@ export function Sidebar() {
         >
           Boards
         </Link>
+        {/* Shown unconditionally — no "am I admin" endpoint exists, so a
+            non-admin who clicks through just sees the 403 state on the page
+            itself rather than the nav deciding visibility up front. */}
+        <Link
+          to="/admin"
+          className="block rounded-md px-3 py-2 text-gray-700 hover:bg-gray-100 hover:text-gray-900 [&.active]:bg-gray-100 [&.active]:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white dark:[&.active]:bg-gray-800 dark:[&.active]:text-white"
+        >
+          Admin
+        </Link>
       </nav>
     </aside>
   )

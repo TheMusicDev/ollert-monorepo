@@ -49,6 +49,7 @@ class CardsControllerTest extends TestCase
         'app.Boards',
         'app.Lists',
         'app.Cards',
+        'app.AuditLogs',
     ];
 
     private const ISS = 'https://test-project.supabase.co/auth/v1';

@@ -119,6 +119,15 @@ export function OrgBoardsPage({ orgId }: { orgId: string }) {
           >
             Manage members
           </Link>
+          {isOwner && (
+            <Link
+              to="/orgs/$orgId/audit-log"
+              params={{ orgId }}
+              className="ml-4 text-sm text-blue-600 hover:underline dark:text-blue-400"
+            >
+              Audit log
+            </Link>
+          )}
         </div>
         <div className="text-right">
           <button

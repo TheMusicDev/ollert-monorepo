@@ -17,9 +17,12 @@ import { Route as SignupRouteImport } from './routes/signup'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as OauthConsentRouteImport } from './routes/oauth/consent'
+import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
+import { Route as AuthenticatedAdminAuditLogsRouteImport } from './routes/_authenticated/admin/audit-logs'
 import { Route as AuthenticatedBoardsBoardIdRouteImport } from './routes/_authenticated/boards/$boardId'
 import { Route as AuthenticatedOrgsIndexRouteImport } from './routes/_authenticated/orgs/index'
 import { Route as AuthenticatedOrgsOrgIdIndexRouteImport } from './routes/_authenticated/orgs/$orgId/index'
+import { Route as AuthenticatedOrgsOrgIdAuditLogRouteImport } from './routes/_authenticated/orgs/$orgId/audit-log'
 import { Route as AuthenticatedOrgsOrgIdMembersRouteImport } from './routes/_authenticated/orgs/$orgId/members'
 
 const IndexRoute = IndexRouteImport.update({
@@ -61,6 +64,17 @@ const OauthConsentRoute = OauthConsentRouteImport.update({
   path: '/oauth/consent',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedAdminAuditLogsRoute =
+  AuthenticatedAdminAuditLogsRouteImport.update({
+    id: '/admin/audit-logs',
+    path: '/admin/audit-logs',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedBoardsBoardIdRoute =
   AuthenticatedBoardsBoardIdRouteImport.update({
     id: '/boards/$boardId',
@@ -78,6 +92,12 @@ const AuthenticatedOrgsOrgIdIndexRoute =
     path: '/orgs/$orgId/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedOrgsOrgIdAuditLogRoute =
+  AuthenticatedOrgsOrgIdAuditLogRouteImport.update({
+    id: '/orgs/$orgId/audit-log',
+    path: '/orgs/$orgId/audit-log',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedOrgsOrgIdMembersRoute =
   AuthenticatedOrgsOrgIdMembersRouteImport.update({
     id: '/orgs/$orgId/members',
@@ -93,8 +113,11 @@ export interface FileRoutesByFullPath {
   '/profile': typeof AuthenticatedProfileRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/oauth/consent': typeof OauthConsentRoute
+  '/admin/audit-logs': typeof AuthenticatedAdminAuditLogsRoute
   '/boards/$boardId': typeof AuthenticatedBoardsBoardIdRoute
+  '/admin/': typeof AuthenticatedAdminIndexRoute
   '/orgs/': typeof AuthenticatedOrgsIndexRoute
+  '/orgs/$orgId/audit-log': typeof AuthenticatedOrgsOrgIdAuditLogRoute
   '/orgs/$orgId/members': typeof AuthenticatedOrgsOrgIdMembersRoute
   '/orgs/$orgId/': typeof AuthenticatedOrgsOrgIdIndexRoute
 }
@@ -106,8 +129,11 @@ export interface FileRoutesByTo {
   '/profile': typeof AuthenticatedProfileRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/oauth/consent': typeof OauthConsentRoute
+  '/admin/audit-logs': typeof AuthenticatedAdminAuditLogsRoute
   '/boards/$boardId': typeof AuthenticatedBoardsBoardIdRoute
+  '/admin': typeof AuthenticatedAdminIndexRoute
   '/orgs': typeof AuthenticatedOrgsIndexRoute
+  '/orgs/$orgId/audit-log': typeof AuthenticatedOrgsOrgIdAuditLogRoute
   '/orgs/$orgId/members': typeof AuthenticatedOrgsOrgIdMembersRoute
   '/orgs/$orgId': typeof AuthenticatedOrgsOrgIdIndexRoute
 }
@@ -121,8 +147,11 @@ export interface FileRoutesById {
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/oauth/consent': typeof OauthConsentRoute
+  '/_authenticated/admin/audit-logs': typeof AuthenticatedAdminAuditLogsRoute
   '/_authenticated/boards/$boardId': typeof AuthenticatedBoardsBoardIdRoute
+  '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/orgs/': typeof AuthenticatedOrgsIndexRoute
+  '/_authenticated/orgs/$orgId/audit-log': typeof AuthenticatedOrgsOrgIdAuditLogRoute
   '/_authenticated/orgs/$orgId/members': typeof AuthenticatedOrgsOrgIdMembersRoute
   '/_authenticated/orgs/$orgId/': typeof AuthenticatedOrgsOrgIdIndexRoute
 }
@@ -136,8 +165,11 @@ export interface FileRouteTypes {
     | '/profile'
     | '/auth/callback'
     | '/oauth/consent'
+    | '/admin/audit-logs'
     | '/boards/$boardId'
+    | '/admin/'
     | '/orgs/'
+    | '/orgs/$orgId/audit-log'
     | '/orgs/$orgId/members'
     | '/orgs/$orgId/'
   fileRoutesByTo: FileRoutesByTo
@@ -149,8 +181,11 @@ export interface FileRouteTypes {
     | '/profile'
     | '/auth/callback'
     | '/oauth/consent'
+    | '/admin/audit-logs'
     | '/boards/$boardId'
+    | '/admin'
     | '/orgs'
+    | '/orgs/$orgId/audit-log'
     | '/orgs/$orgId/members'
     | '/orgs/$orgId'
   id:
@@ -163,8 +198,11 @@ export interface FileRouteTypes {
     | '/_authenticated/profile'
     | '/auth/callback'
     | '/oauth/consent'
+    | '/_authenticated/admin/audit-logs'
     | '/_authenticated/boards/$boardId'
+    | '/_authenticated/admin/'
     | '/_authenticated/orgs/'
+    | '/_authenticated/orgs/$orgId/audit-log'
     | '/_authenticated/orgs/$orgId/members'
     | '/_authenticated/orgs/$orgId/'
   fileRoutesById: FileRoutesById
@@ -237,6 +275,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OauthConsentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/admin/': {
+      id: '/_authenticated/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/admin/audit-logs': {
+      id: '/_authenticated/admin/audit-logs'
+      path: '/admin/audit-logs'
+      fullPath: '/admin/audit-logs'
+      preLoaderRoute: typeof AuthenticatedAdminAuditLogsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/boards/$boardId': {
       id: '/_authenticated/boards/$boardId'
       path: '/boards/$boardId'
@@ -258,6 +310,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOrgsOrgIdIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/orgs/$orgId/audit-log': {
+      id: '/_authenticated/orgs/$orgId/audit-log'
+      path: '/orgs/$orgId/audit-log'
+      fullPath: '/orgs/$orgId/audit-log'
+      preLoaderRoute: typeof AuthenticatedOrgsOrgIdAuditLogRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/orgs/$orgId/members': {
       id: '/_authenticated/orgs/$orgId/members'
       path: '/orgs/$orgId/members'
@@ -270,16 +329,22 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteChildren {
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
+  AuthenticatedAdminAuditLogsRoute: typeof AuthenticatedAdminAuditLogsRoute
   AuthenticatedBoardsBoardIdRoute: typeof AuthenticatedBoardsBoardIdRoute
+  AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedOrgsIndexRoute: typeof AuthenticatedOrgsIndexRoute
+  AuthenticatedOrgsOrgIdAuditLogRoute: typeof AuthenticatedOrgsOrgIdAuditLogRoute
   AuthenticatedOrgsOrgIdMembersRoute: typeof AuthenticatedOrgsOrgIdMembersRoute
   AuthenticatedOrgsOrgIdIndexRoute: typeof AuthenticatedOrgsOrgIdIndexRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
+  AuthenticatedAdminAuditLogsRoute: AuthenticatedAdminAuditLogsRoute,
   AuthenticatedBoardsBoardIdRoute: AuthenticatedBoardsBoardIdRoute,
+  AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedOrgsIndexRoute: AuthenticatedOrgsIndexRoute,
+  AuthenticatedOrgsOrgIdAuditLogRoute: AuthenticatedOrgsOrgIdAuditLogRoute,
   AuthenticatedOrgsOrgIdMembersRoute: AuthenticatedOrgsOrgIdMembersRoute,
   AuthenticatedOrgsOrgIdIndexRoute: AuthenticatedOrgsOrgIdIndexRoute,
 }
