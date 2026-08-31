@@ -12,7 +12,9 @@
     "env": "bash scripts/sync-env.sh",
     "deploy": "kamal deploy -c config/deploy.api.yml && ( cd web && bun run build ) && kamal deploy -c config/deploy.web.yml",
     "deploy:api": "kamal deploy -c config/deploy.api.yml",
-    "deploy:web": "( cd web && bun run build ) && kamal deploy -c config/deploy.web.yml"
+    "deploy:web": "( cd web && bun run build ) && kamal deploy -c config/deploy.web.yml",
+    "deploy:mcp": "kamal deploy -c config/deploy.mcp.yml",
+    "migrate:prod": "cd api && bin/cake migrations migrate --connection prod"
   },
   "devDependencies": {
     "concurrently": "^10.0.5"
