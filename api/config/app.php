@@ -350,6 +350,31 @@ return [
         ],
 
         /*
+         * Prod migration connection — used ONLY by `bun migrate:prod`
+         * (`bin/cake migrations migrate --connection prod`) from a dev machine,
+         * to run phinx against the hosted Supabase DB without overriding the
+         * `default` connection. `DATABASE_URL_PROD` is populated in `api/.env` by
+         * `bun run env` from root `KAMAL__DATABASE_URL`. Not set in the prod
+         * container (env there comes from `.kamal/secrets`, not the local
+         * `api/.env`), so this stays `url => null` there and is never loaded —
+         * CakePHP lazy-loads connections, nothing references this at runtime.
+         */
+        'prod' => [
+            'className' => Connection::class,
+            'driver' => Postgres::class,
+            'persistent' => true,
+            'timezone' => 'UTC',
+            'encoding' => 'utf8',
+            'cacheMetadata' => true,
+            'log' => false,
+            'flags' => [
+                \PDO::ATTR_EMULATE_PREPARES => true,
+            ],
+            'quoteIdentifiers' => false,
+            'url' => env('DATABASE_URL_PROD', null),
+        ],
+
+        /*
          * The test connection is used during the test suite.
          */
         'test' => [
