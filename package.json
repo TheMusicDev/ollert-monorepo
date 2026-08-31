@@ -14,7 +14,7 @@
     "deploy:api": "kamal deploy -c config/deploy.api.yml",
     "deploy:web": "( cd web && bun run build ) && kamal deploy -c config/deploy.web.yml",
     "deploy:mcp": "kamal deploy -c config/deploy.mcp.yml",
-    "migrate:prod": "cd api && bin/cake migrations migrate --connection prod"
+    "migrate:prod": "cd api && test -n \"$(grep -E '^DATABASE_URL_PROD=' .env | cut -d= -f2-)\" && ! grep -qiE '^DATABASE_URL_PROD=.*(localhost|127[.]0[.]0[.]1)' .env && bin/cake migrations migrate --connection prod"
   },
   "devDependencies": {
     "concurrently": "^10.0.5"

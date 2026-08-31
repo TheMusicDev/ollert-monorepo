@@ -162,7 +162,9 @@ connection (`api/config/app.php`), which reads `DATABASE_URL_PROD`. That var is
 populated in `api/.env` by `bun run env` from the root `KAMAL__DATABASE_URL`
 (see `.env.example`'s KAMAL section) — the single source of truth for the prod
 connection string, already maintained for kamal deploys. So once `KAMAL__DATABASE_URL`
-is filled in root `.env` and `bun run env` has been run:
+is filled in root `.env` and `bun run env -- --force` has been run (`--force` because
+`api/.env` already exists from first setup; a plain `bun run env` skips it and leaves
+`DATABASE_URL_PROD` stale):
 
 ```sh
 bun migrate:prod                      # applies pending migrations to hosted Supabase
@@ -181,7 +183,7 @@ existed, by sourcing `api/.env` then overriding `DATABASE_URL` in place:
 
 ```bash
 cd api
-PROD_DB_URL_RAW=<the connection string from .kamal/secrets or the dashboard>
+PROD_DB_URL_RAW="<the connection string from .kamal/secrets or the dashboard>"
 PROD_DB_URL="${PROD_DB_URL_RAW/postgresql:\/\//postgres://}"   # dashboard gives postgresql://, CakePHP needs postgres://
 set -a; source .env; DATABASE_URL="$PROD_DB_URL"; set +a
 bin/cake migrations migrate

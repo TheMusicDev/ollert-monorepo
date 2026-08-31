@@ -30,9 +30,15 @@ fi
 
 # Echo the value of KEY (a root-.env key, with its prefix) from $ENV_FILE, or
 # empty if absent. cut -f2- preserves internal '=' (connection strings carry
-# ?ssl=true&ssl_mode=require).
+# ?ssl=true&ssl_mode=require). Without the rc guard, a missing key makes the
+# grep pipeline return 1 under `set -euo pipefail`, killing the script before
+# the caller's empty-value branch can run (the else-branch was dead code).
+# grep exit 1 (no match) → empty + success; exit 2 (read error) → propagate.
 root_value() {
-  grep -E "^$1=" "$ENV_FILE" | head -1 | cut -d= -f2-
+  local rc=0
+  grep -E "^$1=" "$ENV_FILE" | head -1 | cut -d= -f2- || rc=$?
+  [[ $rc -eq 1 ]] && return 0
+  return "$rc"
 }
 
 # $1 prefix, $2 target path, $3 optional extra line to append after the
@@ -74,7 +80,21 @@ write_target WEB      "$ROOT_DIR/web/.env"
 # local CLI stack. Only the vars that differ from dev need to be listed here, but
 # all three VITE_ vars differ post-Supabase-migration, so all three live under
 # WEB_PROD__. `^WEB_PROD__` and `^WEB__` don't match each other (no prefix collision).
-write_target WEB_PROD "$ROOT_DIR/web/.env.production"
+#
+# Fail closed on incomplete WEB_PROD__ config: a missing or empty var would make
+# Vite fall back to the dev value from web/.env, baking localhost / the local
+# Supabase stack into the prod bundle — the exact 2026-08-31 prod-login-401 root
+# cause. Skip the target (with a warning) rather than write a partial file; don't
+# kill the whole env sync over a prod-only block a dev may have commented out.
+WEB_PROD_KEYS=(VITE_API_BASE_URL VITE_SUPABASE_URL VITE_SUPABASE_PUBLISHABLE_KEY)
+WEB_PROD_OK=1
+for k in "${WEB_PROD_KEYS[@]}"; do
+  if ! grep -qE "^WEB_PROD__${k}=.+" "$ENV_FILE"; then
+    echo "Warning: WEB_PROD__${k} missing or empty in .env — skipping web/.env.production (a partial file would fall back to dev values in prod builds)." >&2
+    WEB_PROD_OK=0
+  fi
+done
+[[ "$WEB_PROD_OK" -eq 1 ]] && write_target WEB_PROD "$ROOT_DIR/web/.env.production"
 write_target MCP   "$ROOT_DIR/mcp/.env"
 write_target E2E   "$ROOT_DIR/e2e/.env"
 write_target KAMAL "$ROOT_DIR/.kamal/secrets"
