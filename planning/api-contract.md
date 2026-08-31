@@ -36,7 +36,7 @@ Org resource shape adds one server-computed field beyond the raw `organizations`
 
 ## Lists
 * `GET /api/boards/:id/lists` - lists in the board, paginated (any org member), ordered by `position` ASC
-* `POST /api/boards/:id/lists` - create list; 422 if the board owner is at their `max_lists_per_board` quota
+* `POST /api/boards/:id/lists` - create list; 422 if the board owner is at their `max_lists_per_board` quota; `position` is optional — omitted, it appends to the end of the board
 * `GET /api/lists/:id` - list detail, includes its cards nested, **not paginated** (same exception as `GET /api/boards/:id` — a list view needs all its cards to render the column), ordered by `position` ASC
 * `PATCH /api/lists/:id` - rename, or update `position` for reordering
 * `DELETE /api/lists/:id` - soft delete (see [Data Model](data-model.md))

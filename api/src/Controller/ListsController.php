@@ -21,10 +21,13 @@ use Cake\ORM\Query\SelectQuery;
  *
  * - `add` - create a list under a board. Any org member. 422
  *   `quota_exceeded` against the org owner's `max_lists_per_board`
- *   (planning/data-model.md#quotas). The first list in an otherwise-empty
- *   board bootstraps `position` to `1.0`
- *   (planning/data-model.md, fractional-indexing note); every list after
- *   that is appended at `max(position) + 1.0`.
+ *   (planning/data-model.md#quotas). `position` is optional in the request
+ *   body: when omitted, the first list in an otherwise-empty board
+ *   bootstraps to `1.0` (planning/data-model.md, fractional-indexing note)
+ *   and every list after that is appended at `max(position) + 1.0`; when the
+ *   client supplies `position` explicitly, it's respected as-is (not
+ *   silently overridden), so a caller can insert at a specific point —
+ *   mirrors `CardsController::add()`'s position handling.
  * - `index`/`view` - read: paginated lists under a board, and a single list
  *   with its cards nested (unpaginated). Any org member.
  * - `edit` - partial update: rename (`title`), reposition (`position`), or
@@ -168,10 +171,16 @@ class ListsController extends AppController
                     'This board has reached its list quota.',
                 );
 
+                // `position` is only auto-computed when the caller omits it
+                // — an explicit position is respected as-is so a caller can
+                // insert at a specific point (mirrors `CardsController::add()`).
+                $data = $this->request->getData();
+                $position = $data['position'] ?? $this->nextPosition($listsTable, $board->id);
+
                 $entity = $listsTable->newEntity([
                     'board_id' => $board->id,
                     'title' => (string)$this->request->getData('title'),
-                    'position' => $this->nextPosition($listsTable, $board->id),
+                    'position' => $position,
                 ]);
 
                 return $listsTable->saveOrFail($entity);

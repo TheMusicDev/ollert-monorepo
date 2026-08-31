@@ -201,6 +201,28 @@ class ListsControllerTest extends TestCase
         $this->assertSame(2.0, (float)$body['position']);
     }
 
+    /**
+     * When the client DOES supply `position`, it's respected exactly (not
+     * silently overridden by the server-computed append value) — mirrors
+     * `CardsControllerTest::testAddRespectsExplicitPosition`. Standard Board
+     * already has a list at `1.0`, so an explicit `0.5` proves the override
+     * rather than colliding with the append-to-`2.0` path.
+     */
+    public function testAddRespectsExplicitPosition(): void
+    {
+        $this->authenticateAs(self::MEMBER_SUB, self::MEMBER_EMAIL);
+
+        $this->post('/api/boards/' . self::STANDARD_BOARD_ID . '/lists', [
+            'title' => 'Pinned',
+            'position' => 0.5,
+        ]);
+
+        $this->assertResponseCode(201);
+        $body = $this->decodedBody();
+        $this->assertSame('Pinned', $body['title']);
+        $this->assertSame(0.5, (float)$body['position']);
+    }
+
     public function testAddReturns422WhenBoardOwnerIsAtListQuota(): void
     {
         // Any org member's create attempt is checked against the *org
