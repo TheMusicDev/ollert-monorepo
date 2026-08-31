@@ -6,6 +6,7 @@ namespace App\Controller;
 use App\Exception\ApiException;
 use App\Model\Entity\Organization;
 use App\Model\Table\UsersTable;
+use App\Service\AuditLogService;
 use App\Service\OrgAuthorizationService;
 use App\Service\QuotaService;
 use Cake\Database\Driver\Mysql;
@@ -25,6 +26,8 @@ class OrganizationsController extends AppController
 
     private QuotaService $quota;
 
+    private AuditLogService $auditLog;
+
     /**
      * @return void
      */
@@ -36,6 +39,7 @@ class OrganizationsController extends AppController
 
         $this->orgAuth = new OrgAuthorizationService();
         $this->quota = new QuotaService();
+        $this->auditLog = new AuditLogService();
     }
 
     /**
@@ -118,6 +122,15 @@ class OrganizationsController extends AppController
             return $this->Organizations->saveOrFail($org);
         });
 
+        $this->auditLog->write(
+            $userId,
+            $org->id,
+            'organization',
+            $org->id,
+            'create',
+            $this->auditLog->diffForCreate($org),
+        );
+
         return $this->renderJson($this->serializeOrg($org, $userId), 201);
     }
 
@@ -156,7 +169,10 @@ class OrganizationsController extends AppController
         $this->Organizations->patchEntity($org, [
             'name' => $this->request->getData('name'),
         ]);
+        $diff = $this->auditLog->diffForUpdate($org);
         $this->Organizations->saveOrFail($org);
+
+        $this->auditLog->write($userId, $org->id, 'organization', $org->id, 'update', $diff);
 
         return $this->renderJson($this->serializeOrg($org, $userId), 200);
     }
@@ -177,7 +193,10 @@ class OrganizationsController extends AppController
             throw new ApiException('Only the organization owner can delete it.', 'not_org_owner', 403);
         }
 
+        $diff = $this->auditLog->diffForDelete($org);
         $this->Organizations->delete($org);
+
+        $this->auditLog->write($userId, $org->id, 'organization', $org->id, 'delete', $diff);
 
         return $this->noContent();
     }

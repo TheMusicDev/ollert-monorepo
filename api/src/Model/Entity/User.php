@@ -16,6 +16,7 @@ use Cake\ORM\Entity;
  * @property int $max_boards_per_org
  * @property int $max_lists_per_board
  * @property int $max_cards_per_board
+ * @property bool $is_admin
  * @property \Cake\I18n\DateTime $created
  * @property \Cake\I18n\DateTime $modified
  * @property \Cake\I18n\DateTime|null $deleted
@@ -42,6 +43,7 @@ class User extends Entity
         'max_boards_per_org' => true,
         'max_lists_per_board' => true,
         'max_cards_per_board' => true,
+        'is_admin' => true,
         'created' => true,
         'modified' => true,
         'deleted' => true,

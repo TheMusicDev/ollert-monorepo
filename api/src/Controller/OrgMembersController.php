@@ -6,6 +6,7 @@ namespace App\Controller;
 use App\Exception\ApiException;
 use App\Model\Entity\Organization;
 use App\Model\Entity\OrgMember;
+use App\Service\AuditLogService;
 use App\Service\OrgAuthorizationService;
 use Cake\Http\Response;
 
@@ -21,6 +22,8 @@ class OrgMembersController extends AppController
 {
     private OrgAuthorizationService $orgAuth;
 
+    private AuditLogService $auditLog;
+
     /**
      * @return void
      */
@@ -31,6 +34,7 @@ class OrgMembersController extends AppController
         $this->loadComponent('Pagination');
 
         $this->orgAuth = new OrgAuthorizationService();
+        $this->auditLog = new AuditLogService();
     }
 
     /**
@@ -104,6 +108,16 @@ class OrgMembersController extends AppController
             'user_id' => $targetUser->id,
         ]);
         $this->OrgMembers->saveOrFail($member);
+
+        $this->auditLog->write(
+            $userId,
+            $id,
+            'org_member',
+            (string)$member->id,
+            'create',
+            $this->auditLog->diffForCreate($member),
+        );
+
         $member->user = $targetUser;
 
         return $this->renderJson($member->toArray(), 201);
@@ -141,7 +155,10 @@ class OrgMembersController extends AppController
             throw new ApiException('That user is not a member of this organization.', 'not_found', 404);
         }
 
+        $diff = $this->auditLog->diffForDelete($member);
         $this->OrgMembers->delete($member);
+
+        $this->auditLog->write($currentUserId, $id, 'org_member', (string)$member->id, 'delete', $diff);
 
         return $this->noContent();
     }

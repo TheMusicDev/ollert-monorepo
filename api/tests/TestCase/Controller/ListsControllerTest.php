@@ -48,6 +48,7 @@ class ListsControllerTest extends TestCase
         // all live on Acme Org's "To Do" list), so the nested `cards` array
         // is empty here.
         'app.Cards',
+        'app.AuditLogs',
     ];
 
     private const ISS = 'https://test-project.supabase.co/auth/v1';
