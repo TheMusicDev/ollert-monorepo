@@ -40,7 +40,7 @@ See [`planning/architecture.md#local-development`](planning/architecture.md#loca
    ```sh
    cp .env.example .env
    $EDITOR .env        # local-dev defaults are already filled in; mainly just set API__SECURITY_SALT
-   bun run env         # writes api/.env, web/.env, mcp/.env, e2e/.env, .kamal/secrets from .env
+   bun run env         # writes api/.env, web/.env, web/.env.production, mcp/.env, e2e/.env, .kamal/secrets from .env
    ```
    `bun run env` skips any target file that already exists — pass `-f`/`--force` (as `bun run env -- --force`) to regenerate one you've hand-edited since. See `.env.example`'s own header comment for the `<TARGET>__<VAR>` prefix convention if you're adding a new variable.
 5. `cd api && bin/cake migrations migrate` (creates the schema against local Postgres — needs the Supabase stack up first, see step 6). Dependencies are already installed from step 1.

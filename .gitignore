@@ -1,8 +1,6 @@
 .idea/
 node_modules/
 .env
-.env.fe
-.env.deploy
 # kamal real secrets — the .example is safe to commit, this file is not.
 .kamal/secrets
 .claude/worktrees/

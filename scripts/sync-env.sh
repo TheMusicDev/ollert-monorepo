@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Generates api/.env, web/.env, mcp/.env, e2e/.env, and .kamal/secrets from
-# the root .env (copy .env.example -> .env and fill it out first — see
-# README.md#local-development).
+# Generates api/.env, web/.env, web/.env.production, mcp/.env, e2e/.env, and
+# .kamal/secrets from the root .env (copy .env.example -> .env and fill it out
+# first — see README.md#local-development).
 #
 # Usage: bun run env [-f|--force]
 # Skips a target file that already exists unless -f/--force is passed.
@@ -67,7 +67,14 @@ else
   echo "Note: KAMAL__DATABASE_URL empty in .env — DATABASE_URL_PROD omitted; bun migrate:prod unavailable until you fill it." >&2
 fi
 write_target API   "$ROOT_DIR/api/.env" "$PROD_LINE"
-write_target WEB   "$ROOT_DIR/web/.env"
+write_target WEB      "$ROOT_DIR/web/.env"
+# web/.env.production — prod build overrides loaded by `vite build` (mode=production,
+# which loads .env then .env.production). Sourced from WEB_PROD__*, not WEB__*, so
+# the prod SPA bakes in the hosted Supabase project + prod API URL instead of the
+# local CLI stack. Only the vars that differ from dev need to be listed here, but
+# all three VITE_ vars differ post-Supabase-migration, so all three live under
+# WEB_PROD__. `^WEB_PROD__` and `^WEB__` don't match each other (no prefix collision).
+write_target WEB_PROD "$ROOT_DIR/web/.env.production"
 write_target MCP   "$ROOT_DIR/mcp/.env"
 write_target E2E   "$ROOT_DIR/e2e/.env"
 write_target KAMAL "$ROOT_DIR/.kamal/secrets"

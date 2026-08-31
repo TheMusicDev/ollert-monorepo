@@ -132,18 +132,19 @@ transaction-mode pooler's own multiplexing either way.
 The web SPA is built **locally** before `kamal deploy` (`bun run build` in
 `web/`). Vite loads env files by mode: `bun run dev` (mode=development) reads
 `web/.env`; `bun run build` (mode=production) reads `web/.env` **then**
-`web/.env.production` (later overrides). So the two env files split by what
-differs between dev and prod:
-- `web/.env` (gitignored; copy `web/.env.example`) — holds the **dev**
-  values: `VITE_SUPABASE_URL`/`VITE_SUPABASE_PUBLISHABLE_KEY` for the
-  Supabase CLI local stack, and `VITE_API_BASE_URL=http://localhost:8765/api`.
-- `web/.env.production` (gitignored) — holds the **prod** overrides:
-  `VITE_API_BASE_URL=https://ollert-api.2719.fyi/api` **and**
-  `VITE_SUPABASE_URL`/`VITE_SUPABASE_PUBLISHABLE_KEY` for the real hosted
-  Supabase project. **Changed 2026-08-29** (post Supabase migration): dev
-  and prod no longer share one Supabase project — dev is the local CLI
+`web/.env.production` (later overrides). Both files are **generated** by
+`bun run env` from root `.env` (single source of truth) — do not hand-edit:
+- `web/.env` (gitignored; from root `WEB__*`) — holds the **dev** values:
+  `VITE_SUPABASE_URL`/`VITE_SUPABASE_PUBLISHABLE_KEY` for the Supabase CLI
+  local stack, and `VITE_API_BASE_URL=http://localhost:8765/api`.
+- `web/.env.production` (gitignored; from root `WEB_PROD__*`) — holds the
+  **prod** overrides: `VITE_API_BASE_URL=https://ollert-api.2719.fyi/api`
+  **and** `VITE_SUPABASE_URL`/`VITE_SUPABASE_PUBLISHABLE_KEY` for the real
+  hosted Supabase project. **Changed 2026-08-29** (post Supabase migration):
+  dev and prod no longer share one Supabase project — dev is the local CLI
   stack, prod is hosted — so unlike before, Supabase vars must be overridden
-  here too, not just the API URL.
+  here too, not just the API URL. Set `WEB_PROD__*` in root `.env` and
+  `bun run env -- --force` to regenerate.
 
 The VITE_ vars are public (publishable key + Supabase URL ship in the client
 bundle), so no build-secret machinery. **Without `.env.production`, the prod
