@@ -311,6 +311,69 @@ class CardsControllerTest extends TestCase
     }
 
     /**
+     * `position` is optional on create — omitted, it bootstraps to `1.0` for
+     * the first card on a list, mirroring `ListsController::nextPosition()`
+     * (see that class's `testAddOnEmptyBoardBootstrapsPositionToOne`).
+     * "In Progress" (`...0002`) has no card rows in `CardsFixture`.
+     */
+    public function testAddWithoutPositionBootstrapsPositionToOneOnEmptyList(): void
+    {
+        $this->actingAs(self::MEMBER_SUB, self::MEMBER_EMAIL);
+
+        $this->post('/api/lists/' . self::LIST_IN_PROGRESS . '/cards', [
+            'title' => 'First Card',
+        ]);
+
+        $this->assertResponseCode(201);
+        $body = $this->decodeBody();
+        $this->assertSame('First Card', $body['title']);
+        $this->assertSame(1.0, (float)$body['position']);
+    }
+
+    /**
+     * A second card created without `position` on the same list appends
+     * after the first (`max(position) + 1.0`), scoped to the *list*
+     * (`list_id`), not the whole board.
+     */
+    public function testAddWithoutPositionAppendsAfterExistingMaxPositionInList(): void
+    {
+        $this->actingAs(self::MEMBER_SUB, self::MEMBER_EMAIL);
+
+        $this->post('/api/lists/' . self::LIST_IN_PROGRESS . '/cards', ['title' => 'First Card']);
+        $this->assertResponseCode(201);
+
+        // `IntegrationTestTrait` clears the configured request (incl. the
+        // auth header) after each call — re-authenticate for the second one.
+        $this->actingAs(self::MEMBER_SUB, self::MEMBER_EMAIL);
+        $this->post('/api/lists/' . self::LIST_IN_PROGRESS . '/cards', ['title' => 'Second Card']);
+
+        $this->assertResponseCode(201);
+        $body = $this->decodeBody();
+        $this->assertSame('Second Card', $body['title']);
+        $this->assertSame(2.0, (float)$body['position']);
+    }
+
+    /**
+     * When the client DOES supply `position`, it's respected exactly (not
+     * silently overridden by the server-computed append value) — some
+     * callers want exact control, e.g. inserting at a specific point.
+     */
+    public function testAddRespectsExplicitPosition(): void
+    {
+        $this->actingAs(self::MEMBER_SUB, self::MEMBER_EMAIL);
+
+        $this->post('/api/lists/' . self::LIST_TODO . '/cards', [
+            'title' => 'Explicit Position Card',
+            'position' => 0.5,
+        ]);
+
+        $this->assertResponseCode(201);
+        $body = $this->decodeBody();
+        $this->assertSame('Explicit Position Card', $body['title']);
+        $this->assertSame(0.5, (float)$body['position']);
+    }
+
+    /**
      * "Card Quota Board"'s owner ("poweruser") has `max_cards_per_board: 2`
      * (`UsersFixture`), and the board already has exactly 2 cards *split
      * across two different lists* (Quota Card A on List A, Quota Card B on
@@ -519,7 +582,7 @@ class CardsControllerTest extends TestCase
     }
 
     /**
-     * @return array<int, mixed> Decoded JSON response body.
+     * @return array<int|string, mixed> Decoded JSON response body.
      */
     private function decodeBody(): array
     {
