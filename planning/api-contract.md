@@ -43,7 +43,7 @@ Org resource shape adds one server-computed field beyond the raw `organizations`
 
 ## Cards
 * `GET /api/lists/:id/cards` - cards in the list, paginated (any org member), ordered by `position` ASC
-* `POST /api/lists/:id/cards` - create card; 422 if the board owner is at their `max_cards_per_board` quota
+* `POST /api/lists/:id/cards` - create card; 422 if the board owner is at their `max_cards_per_board` quota; `position` is optional — omitted, it appends to the end of the list
 * `GET /api/cards/:id` - card detail (any org member)
 * `PATCH /api/cards/:id` - update title/description/due_date/position (including moving to a different `list_id`)
 * `DELETE /api/cards/:id` - soft delete (see [Data Model](data-model.md))
