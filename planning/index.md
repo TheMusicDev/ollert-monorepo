@@ -14,7 +14,8 @@ Stripped-down Trello clone. CakePHP backend, Supabase Auth for user management, 
 * [Design](design.md) - color palette, typography, layout pattern for the FE
 * [Roadmap](roadmap.md) - MVP scope, phases, and deferred work
 * [MCP Server](mcp-server.md) - Node/TS MCP server design for claude.ai custom connector access
-* [Supabase Migration](supabase-migration.md) - planned overhaul moving app data from MySQL to Supabase Postgres + Storage + Realtime (decided, not started)
+* [Supabase Migration](supabase-migration.md) - overhaul moving app data from MySQL to Supabase Postgres + Storage + Realtime (complete 2026-08-30; Storage/Realtime/Search still deferred follow-ups)
+* [Permissions](permissions.md) - current org/board/list/card authorization model, verified against code, plus deferred ideas
 
 # History
 

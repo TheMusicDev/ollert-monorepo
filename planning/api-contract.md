@@ -9,7 +9,7 @@ generated: { by: "claude-code/sonnet-5", at: "2026-08-19T19:50:29Z" }
 
 # Summary
 
-JSON REST API under `/api/`. Every route (except a health check) requires `Authorization: Bearer <supabase-jwt>`; see [Architecture](architecture.md) for verification details. No CakePHP-native login/register/logout routes — auth lifecycle is entirely on the frontend against Supabase.
+JSON REST API under `/api/`. Every route (except a health check) requires `Authorization: Bearer <supabase-jwt>`; see [Architecture](architecture.md) for verification details. No CakePHP-native login/register/logout routes — auth lifecycle is entirely on the frontend against Supabase. Per-endpoint owner/member gating is called out inline below; see [Permissions](permissions.md) for the full matrix in one place plus the reasoning behind it.
 
 # Endpoints
 

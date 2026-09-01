@@ -4,6 +4,10 @@ Stripped-down Trello clone. CakePHP backend, Supabase Auth for user management, 
 
 Full architecture, schema, API contract, and decision history live in the OKF planning bundle — start at [`planning/index.md`](planning/index.md).
 
+## Permissions
+
+Two roles, org-wide: **owner** (whoever created the org) and **member** (everyone else added to it). Board/list/card create/rename/move/delete is open to **any member** — only **creating a new board** requires being the org's owner (it's the one action that spends the owner's `max_boards_per_org` quota). Adding an existing user to an org by email is also open to any member, with no consent step from the person added. Full matrix, rationale, and deferred ideas for a richer role model: [`planning/permissions.md`](planning/permissions.md).
+
 ## Repo layout
 
 ```text
