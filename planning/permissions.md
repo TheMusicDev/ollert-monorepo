@@ -3,7 +3,7 @@ type: Architecture
 title: Permission System
 description: How org/board/list/card authorization actually works today (verified against code), plus deferred ideas for a future revisit.
 tags: [permissions, authorization, roles, org-members]
-status: draft
+status: stable
 generated: { by: "claude-code/sonnet-5", at: "2026-08-30T00:00:00Z" }
 ---
 
