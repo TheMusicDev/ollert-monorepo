@@ -8,6 +8,7 @@ use App\Model\Entity\Card;
 use App\Model\Table\CardsTable;
 use App\Model\Table\ListsTable;
 use App\Model\Table\UsersTable;
+use App\Service\AuditLogService;
 use App\Service\OrgAuthorizationService;
 use App\Service\QuotaService;
 use Cake\Database\Driver\Sqlite;
@@ -40,6 +41,11 @@ class CardsController extends AppController
      * @var \App\Service\OrgAuthorizationService|null
      */
     private ?OrgAuthorizationService $orgAuthorization = null;
+
+    /**
+     * @var \App\Service\AuditLogService|null
+     */
+    private ?AuditLogService $auditLogService = null;
 
     /**
      * `index`/`view` render through JsonView + `serialize` (paginated
@@ -116,6 +122,14 @@ class CardsController extends AppController
      * not just the target list — so the count query joins through `Lists`
      * filtered by `board_id`, not `list_id`.
      *
+     * `position` is optional in the request body: when omitted, it's
+     * computed server-side the same way `ListsController::nextPosition()`
+     * does for lists — `1.0` for the first card on the list, else
+     * `max(position) + 1.0` — scoped to this card's *list* (`list_id`), not
+     * the whole board, since cards are ordered within a list. When the
+     * client supplies `position` explicitly, it's respected as-is (not
+     * silently overridden), so a caller can insert at a specific point.
+     *
      * The count-check and the save are wrapped in one transaction, with a
      * locking read of the quota-owning user row first, per
      * `QuotaService`'s documented non-atomicity caveat: without the lock,
@@ -143,7 +157,7 @@ class CardsController extends AppController
         $data['list_id'] = $listId;
 
         $card = $cardsTable->getConnection()->transactional(
-            function () use ($cardsTable, $usersTable, $ownerId, $boardId, $data): Card {
+            function () use ($cardsTable, $usersTable, $ownerId, $boardId, $listId, $data): Card {
                 $this->lockOwnerRow($usersTable, $ownerId);
 
                 (new QuotaService())->assertUnderQuota(
@@ -153,12 +167,25 @@ class CardsController extends AppController
                     'This board has reached its card quota.',
                 );
 
+                if (!isset($data['position'])) {
+                    $data['position'] = $this->nextPosition($cardsTable, $listId);
+                }
+
                 $entity = $cardsTable->newEntity($data, [
                     'fields' => ['title', 'description', 'due_date', 'position', 'list_id'],
                 ]);
 
                 return $cardsTable->saveOrFail($entity);
             },
+        );
+
+        $this->auditLogService()->write(
+            $userId,
+            $orgId,
+            'card',
+            (string)$card->id,
+            'create',
+            $this->auditLogService()->diffForCreate($card),
         );
 
         return $this->jsonResponse($card, 201);
@@ -205,7 +232,10 @@ class CardsController extends AppController
         $cardsTable->patchEntity($card, $data, [
             'fields' => ['title', 'description', 'due_date', 'position', 'list_id'],
         ]);
+        $diff = $this->auditLogService()->diffForUpdate($card);
         $card = $cardsTable->saveOrFail($card);
+
+        $this->auditLogService()->write($userId, $currentOrgId, 'card', (string)$card->id, 'update', $diff);
 
         return $this->jsonResponse($card, 200);
     }
@@ -227,7 +257,10 @@ class CardsController extends AppController
 
         $this->assertOrgMember($userId, $orgId);
 
+        $diff = $this->auditLogService()->diffForDelete($card);
         $this->fetchCardsTable()->delete($card);
+
+        $this->auditLogService()->write($userId, $orgId, 'card', (string)$card->id, 'delete', $diff);
 
         return $this->jsonResponse(null, 204);
     }
@@ -265,6 +298,14 @@ class CardsController extends AppController
     private function orgAuthorizationService(): OrgAuthorizationService
     {
         return $this->orgAuthorization ??= new OrgAuthorizationService();
+    }
+
+    /**
+     * @return \App\Service\AuditLogService
+     */
+    private function auditLogService(): AuditLogService
+    {
+        return $this->auditLogService ??= new AuditLogService();
     }
 
     /**
@@ -371,6 +412,30 @@ class CardsController extends AppController
         }
 
         $query->firstOrFail();
+    }
+
+    /**
+     * The `position` a newly created card should get: `1.0` if the list has
+     * no cards yet, otherwise `max(position) + 1.0` (append to the end) —
+     * mirrors `ListsController::nextPosition()`, but scoped to a *list*
+     * (`list_id`) rather than a board, since cards are ordered within a
+     * list (planning/data-model.md's fractional-indexing note).
+     *
+     * @param \App\Model\Table\CardsTable $cardsTable The Cards table.
+     * @param string $listId The parent list's `id`.
+     * @return float
+     */
+    private function nextPosition(CardsTable $cardsTable, string $listId): float
+    {
+        $query = $cardsTable->find();
+        $row = $query
+            ->select(['maxPosition' => $query->func()->max('position')])
+            ->where(['list_id' => $listId])
+            ->first();
+
+        $max = $row?->get('maxPosition');
+
+        return $max === null ? 1.0 : (float)$max + 1.0;
     }
 
     /**

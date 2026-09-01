@@ -208,9 +208,11 @@ class AuthMiddleware implements MiddlewareInterface
         }
 
         try {
+            $adminUuid = (string)env('ADMIN_UUID', '');
             $user = $usersTable->newEntity([
                 'supabase_uid' => $supabaseUid,
                 'email' => $payload->email,
+                'is_admin' => $adminUuid !== '' && $supabaseUid === $adminUuid,
             ]);
 
             return $usersTable->saveOrFail($user);

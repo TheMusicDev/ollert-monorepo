@@ -1,8 +1,12 @@
 .idea/
 node_modules/
 .env
-.env.fe
-.env.deploy
 # kamal real secrets — the .example is safe to commit, this file is not.
 .kamal/secrets
 .claude/worktrees/
+
+# phinx schema-dump cache — regenerable, one per Datasources connection
+# (api/config/Migrations/schema-dump-<connection>.lock). phinx rewrites it on
+# every `migrate`; tracking it just churns every schema-changing commit. The
+# `default` one was first committed by accident in 5fb4563 and un-tracked here.
+api/config/Migrations/schema-dump-*.lock

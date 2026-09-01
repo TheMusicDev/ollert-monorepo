@@ -25,7 +25,7 @@ class OrgMembersControllerTest extends TestCase
     /**
      * @var array<string>
      */
-    protected array $fixtures = ['app.Users', 'app.Organizations', 'app.OrgMembers'];
+    protected array $fixtures = ['app.Users', 'app.Organizations', 'app.OrgMembers', 'app.AuditLogs'];
 
     private const OWNER_SUB = '20000000-0000-4000-8000-000000000001';
 

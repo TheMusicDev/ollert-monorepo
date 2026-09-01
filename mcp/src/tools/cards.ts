@@ -27,15 +27,16 @@ export function registerCards(server: McpServer, bearer: string): void {
   server.registerTool(
     "create_card",
     {
-      description: "Create a card on a list (422 if over max_cards_per_board).",
+      description: "Create a card on a list (422 if over max_cards_per_board). Omit position to append to the end of the list.",
       inputSchema: z.object({
         list_id: z.string().uuid(),
         title: z.string().min(1),
         description: z.string().optional(),
         due_date: z.string().optional(),
+        position: z.union([z.number(), z.string()]).optional(),
       }),
     },
-    async (a) => run(() => apiFetch<Card>(`/api/lists/${a.list_id}/cards`, bearer, { method: "POST", body: JSON.stringify(patchOf(a, ["title", "description", "due_date"])) })),
+    async (a) => run(() => apiFetch<Card>(`/api/lists/${a.list_id}/cards`, bearer, { method: "POST", body: JSON.stringify(patchOf(a, ["title", "description", "due_date", "position"])) })),
   );
 
   server.registerTool(

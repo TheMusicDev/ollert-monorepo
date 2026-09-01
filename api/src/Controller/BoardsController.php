@@ -9,6 +9,7 @@ use App\Model\Entity\User;
 use App\Model\Table\BoardsTable;
 use App\Model\Table\OrganizationsTable;
 use App\Model\Table\UsersTable;
+use App\Service\AuditLogService;
 use App\Service\OrgAuthorizationService;
 use App\Service\QuotaService;
 use Cake\Database\Driver\Mysql;
@@ -107,6 +108,15 @@ class BoardsController extends AppController
             return $boardsTable->saveOrFail($board);
         });
 
+        $this->auditLogService()->write(
+            (string)$user->id,
+            (string)$org->id,
+            'board',
+            (string)$board->id,
+            'create',
+            $this->auditLogService()->diffForCreate($board),
+        );
+
         $this->set('board', $board);
         $this->viewBuilder()->setOption('serialize', 'board');
         $this->response = $this->response->withStatus(201);
@@ -157,7 +167,17 @@ class BoardsController extends AppController
         $board = $boardsTable->patchEntity($board, $this->request->getData(), [
             'fields' => ['title'],
         ]);
+        $diff = $this->auditLogService()->diffForUpdate($board);
         $boardsTable->saveOrFail($board);
+
+        $this->auditLogService()->write(
+            (string)$user->id,
+            (string)$board->org_id,
+            'board',
+            (string)$board->id,
+            'update',
+            $diff,
+        );
 
         $this->set('board', $board);
         $this->viewBuilder()->setOption('serialize', 'board');
@@ -181,7 +201,17 @@ class BoardsController extends AppController
 
         $this->assertOrgMember($user, $board->org_id);
 
+        $diff = $this->auditLogService()->diffForDelete($board);
         $boardsTable->delete($board);
+
+        $this->auditLogService()->write(
+            (string)$user->id,
+            (string)$board->org_id,
+            'board',
+            (string)$board->id,
+            'delete',
+            $diff,
+        );
 
         $this->autoRender = false;
         $this->response = $this->response->withStatus(204);
@@ -306,5 +336,13 @@ class BoardsController extends AppController
     private function quotaService(): QuotaService
     {
         return new QuotaService();
+    }
+
+    /**
+     * @return \App\Service\AuditLogService
+     */
+    private function auditLogService(): AuditLogService
+    {
+        return new AuditLogService();
     }
 }

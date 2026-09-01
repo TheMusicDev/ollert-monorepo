@@ -132,18 +132,19 @@ transaction-mode pooler's own multiplexing either way.
 The web SPA is built **locally** before `kamal deploy` (`bun run build` in
 `web/`). Vite loads env files by mode: `bun run dev` (mode=development) reads
 `web/.env`; `bun run build` (mode=production) reads `web/.env` **then**
-`web/.env.production` (later overrides). So the two env files split by what
-differs between dev and prod:
-- `web/.env` (gitignored; copy `web/.env.example`) — holds the **dev**
-  values: `VITE_SUPABASE_URL`/`VITE_SUPABASE_PUBLISHABLE_KEY` for the
-  Supabase CLI local stack, and `VITE_API_BASE_URL=http://localhost:8765/api`.
-- `web/.env.production` (gitignored) — holds the **prod** overrides:
-  `VITE_API_BASE_URL=https://ollert-api.2719.fyi/api` **and**
-  `VITE_SUPABASE_URL`/`VITE_SUPABASE_PUBLISHABLE_KEY` for the real hosted
-  Supabase project. **Changed 2026-08-29** (post Supabase migration): dev
-  and prod no longer share one Supabase project — dev is the local CLI
+`web/.env.production` (later overrides). Both files are **generated** by
+`bun run env` from root `.env` (single source of truth) — do not hand-edit:
+- `web/.env` (gitignored; from root `WEB__*`) — holds the **dev** values:
+  `VITE_SUPABASE_URL`/`VITE_SUPABASE_PUBLISHABLE_KEY` for the Supabase CLI
+  local stack, and `VITE_API_BASE_URL=http://localhost:8765/api`.
+- `web/.env.production` (gitignored; from root `WEB_PROD__*`) — holds the
+  **prod** overrides: `VITE_API_BASE_URL=https://ollert-api.2719.fyi/api`
+  **and** `VITE_SUPABASE_URL`/`VITE_SUPABASE_PUBLISHABLE_KEY` for the real
+  hosted Supabase project. **Changed 2026-08-29** (post Supabase migration):
+  dev and prod no longer share one Supabase project — dev is the local CLI
   stack, prod is hosted — so unlike before, Supabase vars must be overridden
-  here too, not just the API URL.
+  here too, not just the API URL. Set `WEB_PROD__*` in root `.env` and
+  `bun run env -- --force` to regenerate.
 
 The VITE_ vars are public (publishable key + Supabase URL ship in the client
 bundle), so no build-secret machinery. **Without `.env.production`, the prod
@@ -153,37 +154,54 @@ TanStack Start's SPA prerender spins up a vite preview server that fails to
 bind under the bun Nitro preset inside docker (ConnectionRefused
 localhost:3000, 0 pages prerendered); building locally works.
 
-### 3. Create the schema on hosted Postgres (once) — **done 2026-08-30**
+### 3. Run prod migrations — `bun migrate:prod`
 
 No accessory to boot — the database already exists, hosted by Supabase.
-One-time schema creation, run from any machine with the prod `DATABASE_URL`
-(e.g. locally, pointed at prod temporarily). A plain
-`DATABASE_URL=<prod string> bin/cake migrations migrate` prefix does NOT
-work here — `api/.env`'s own `DATABASE_URL` (the local dev value) is
-already in `getenv()` by the time CakePHP's dotenv loader runs, and it
-raises `LogicException: Key "DATABASE_URL" has already been defined`
-rather than overriding it. Source the local `.env` first (so every *other*
-required var is set), then override just this one:
+Prod migrations run out-of-band from a dev machine via the `prod` Datasources
+connection (`api/config/app.php`), which reads `DATABASE_URL_PROD`. That var is
+populated in `api/.env` by `bun run env` from the root `KAMAL__DATABASE_URL`
+(see `.env.example`'s KAMAL section) — the single source of truth for the prod
+connection string, already maintained for kamal deploys. So once `KAMAL__DATABASE_URL`
+is filled in root `.env` and `bun run env -- --force` has been run (`--force` because
+`api/.env` already exists from first setup; a plain `bun run env` skips it and leaves
+`DATABASE_URL_PROD` stale):
+
+```sh
+bun migrate:prod                      # applies pending migrations to hosted Supabase
+# (read-only check first, no schema change):
+cd api && bin/cake migrations status --connection prod
+```
+
+When filling `KAMAL__DATABASE_URL`, mind the two gotchas above: the Supabase
+dashboard gives a `postgresql://` scheme that CakePHP rejects — rewrite it to
+`postgres://` — and use `?ssl=true&ssl_mode=require`, not `?sslmode=require`
+(CakePHP's DSN parser only reads the `ssl`/`ssl_mode` keys). The template in
+`.env.example` already shows the correct form.
+
+The initial one-time schema creation (2026-08-30) was done before this script
+existed, by sourcing `api/.env` then overriding `DATABASE_URL` in place:
 
 ```bash
 cd api
-PROD_DB_URL_RAW=<the connection string from .kamal/secrets or the dashboard>
-PROD_DB_URL="${PROD_DB_URL_RAW/postgresql:\/\//postgres://}"   # dashboard gives postgresql://, CakePHP needs postgres:// — see above
+PROD_DB_URL_RAW="<the connection string from .kamal/secrets or the dashboard>"
+PROD_DB_URL="${PROD_DB_URL_RAW/postgresql:\/\//postgres://}"   # dashboard gives postgresql://, CakePHP needs postgres://
 set -a; source .env; DATABASE_URL="$PROD_DB_URL"; set +a
 bin/cake migrations migrate
 ```
 
-(Bash-specific syntax — `${VAR/pattern/replacement}` and `source` aren't POSIX `sh`. Run this with bash, not `sh`.)
+That dance still works as a one-off escape hatch against an arbitrary DB (the
+`set -a; source .env` step is needed because a plain
+`DATABASE_URL=<x> bin/cake ...` prefix collides with `api/.env`'s own value —
+CakePHP's dotenv loader raises `LogicException` on an already-defined key
+instead of overwriting it). For routine prod migrations, prefer `bun migrate:prod`
+— it keeps `default` pointed at local dev and reaches prod through a dedicated
+connection instead.
 
-This is the entire "cutover" — there's no data to migrate (see
-`planning/supabase-migration.md#cutover-concern`), just schema creation
-against an empty database. Ran it for real against the hosted project —
-all 6 migrations applied clean, verified with `bin/cake migrations status`
-before and after. After this, `api/docker-entrypoint.sh` re-runs
-`bin/cake migrations migrate` on every deploy (idempotent, see "How
-migrations run" below) — this one-time step just gets the first deploy's
-entrypoint past an otherwise-empty database faster and lets you verify the
-schema lands correctly before trusting a live deploy to do it.
+After this, `api/docker-entrypoint.sh` re-runs `bin/cake migrations migrate`
+on every deploy (idempotent, see "How migrations run" below) — running it
+out-of-band ahead of a deploy just gets the first deploy's entrypoint past an
+otherwise-empty database faster and lets you verify the schema lands correctly
+before trusting a live deploy to do it.
 
 ### 4. cloudflared + DNS (once)
 

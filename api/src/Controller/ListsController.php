@@ -8,6 +8,7 @@ use App\Model\Entity\Board;
 use App\Model\Entity\BoardList;
 use App\Model\Entity\User;
 use App\Model\Table\ListsTable;
+use App\Service\AuditLogService;
 use App\Service\OrgAuthorizationService;
 use App\Service\QuotaService;
 use Cake\Database\Driver\Sqlite;
@@ -45,6 +46,8 @@ class ListsController extends AppController
 
     private QuotaService $quotaService;
 
+    private AuditLogService $auditLogService;
+
     /**
      * @return void
      */
@@ -54,6 +57,7 @@ class ListsController extends AppController
 
         $this->orgAuthorizationService = new OrgAuthorizationService();
         $this->quotaService = new QuotaService();
+        $this->auditLogService = new AuditLogService();
 
         // `index`/`view` render through JsonView + `serialize` (paginated
         // `{data,meta}` envelope / nested entity), mirroring BoardsController.
@@ -178,6 +182,15 @@ class ListsController extends AppController
             },
         );
 
+        $this->auditLogService->write(
+            $identity->id,
+            $board->org_id,
+            'list',
+            (string)$list->id,
+            'create',
+            $this->auditLogService->diffForCreate($list),
+        );
+
         return $this->jsonResponse($list, 201);
     }
 
@@ -207,7 +220,17 @@ class ListsController extends AppController
         $data = array_intersect_key($this->request->getData(), array_flip(['title', 'position']));
 
         $listsTable->patchEntity($list, $data);
+        $diff = $this->auditLogService->diffForUpdate($list);
         $listsTable->saveOrFail($list);
+
+        $this->auditLogService->write(
+            $identity->id,
+            $this->orgIdForBoard($list->board_id),
+            'list',
+            (string)$list->id,
+            'update',
+            $diff,
+        );
 
         return $this->jsonResponse($list);
     }
@@ -224,9 +247,13 @@ class ListsController extends AppController
 
         $identity = $this->identity();
         $list = $this->findListOrFail($id);
-        $this->assertOrgMember($identity, $this->orgIdForBoard($list->board_id));
+        $orgId = $this->orgIdForBoard($list->board_id);
+        $this->assertOrgMember($identity, $orgId);
 
+        $diff = $this->auditLogService->diffForDelete($list);
         $this->fetchTable('Lists')->delete($list);
+
+        $this->auditLogService->write($identity->id, $orgId, 'list', (string)$list->id, 'delete', $diff);
 
         return $this->jsonResponse($list);
     }
