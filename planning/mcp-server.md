@@ -129,10 +129,6 @@ Kamal deploys a Docker container to a machine on the local network; Cloudflare (
 
 # Planned follow-ons (not started)
 
-Identified 2026-08-24 after the claude.ai connector went live; recorded in [log.md](log.md) 2026-08-24 (cont.) and [Roadmap](roadmap.md#near-term-work-not-started):
+Identified 2026-08-24 after the claude.ai connector went live; recorded in [log.md](log.md) 2026-08-24 (cont.) and [Roadmap](roadmap.md#near-term-work-not-started). Since resolved (verified against the shipped code as of this edit — see `mcp/README.md`'s 23-tool list and `mcp/package.json`): read-gap tools (`list_lists`/`list_cards`/`get_card`/`get_list` are all shipped), pinned dependency versions (`package.json` has no `latest`), and tool annotations (`readOnlyHint`/`destructiveHint` are set per the README's tool list). Remaining open item:
 
-* **Read-gap tools** — the 18 shipped tools are create/move/delete only; an agent can't enumerate. Missing: `list_lists`, `list_cards`, `get_card`, `get_list`. Other candidates: card reordering/move, search-as-a-tool, bulk list/card creation for seeding a new board.
-* **`mcp/README.md`** — no README yet listing the available tools.
-* **Pin dependency versions** — `package.json` has `@modelcontextprotocol/server` / `@types/bun` on `latest`; pin to concrete versions before this feels production-y (SDK is pre-1.0 and moving fast — exactly why a pin matters). Pin `zod`/`jose` likewise.
-* **Tool annotations** — the SDK lets tools declare `readOnlyHint`/`destructiveHint`/`idempotentHint`; we don't set them yet. claude.ai could surface "this will delete" more accurately. Low effort, reads as polish.
 * **Skip prompts/resources** — MCP also has prompts and resources primitives beyond tools, but only if there's a real agent use case; speculative otherwise.

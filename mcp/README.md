@@ -91,6 +91,16 @@ Claude Code's remote-MCP OAuth callback is a fixed local port you choose, not a 
 
 Verified working end-to-end 2026-08-30.
 
+## Connecting Claude Desktop
+
+Claude Desktop's custom connectors run through the **same account-level "Customize → Connectors"** flow as claude.ai — connections are made from Anthropic's cloud, not the local device, so there's no separate desktop redirect URI or callback port to register. The claude.ai client registered above (redirect URI `https://claude.ai/api/mcp/auth_callback`) already covers Desktop: adding the connector in Desktop's Settings → Connectors reuses that same client_id and shows up for that account everywhere (web, Desktop, mobile).
+
+1. In Claude Desktop: **Settings → Connectors → Add custom connector**.
+2. **Remote MCP server URL**: `https://ollert-mcp.2719.fyi/mcp`.
+3. Under **OAuth client**, pick **Use your own OAuth client** and paste in the `client_id` from the claude.ai registration above (Dynamic Client Registration is off server-side, so "register one automatically" won't work).
+4. Complete the OAuth flow — same Supabase authorize → Ollert `/oauth/consent` → callback dance as claude.ai.
+5. Verify: ask Claude to list your Ollert orgs.
+
 ## Develop
 
 ```sh
