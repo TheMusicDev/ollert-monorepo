@@ -47,33 +47,25 @@ function ProfilePage() {
               claude.ai / Claude Desktop:
             </strong>{' '}
             Settings → Connectors → Add custom connector, paste the server
-            URL above. (Team/Enterprise: only an Owner/Primary Owner adds it
-            at the org level — members just connect to the existing one.)
+            URL above, leave OAuth on its default. (Team/Enterprise: only an
+            Owner/Primary Owner adds it at the org level — members just
+            connect to the existing one.)
           </p>
           <p>
             <strong className="text-gray-900 dark:text-gray-100">
               Claude Code:
-            </strong>{' '}
-            needs its own registered client (it uses a local callback, not
-            the cloud flow claude.ai/Desktop share) — get a{' '}
-            <code>client_id</code> registered with redirect URI{' '}
-            <code>http://localhost:&lt;PORT&gt;/callback</code> and that same{' '}
-            <code>PORT</code> from the admin first, then:
+            </strong>
           </p>
           <pre className="overflow-x-auto rounded bg-gray-100 p-2 text-xs dark:bg-gray-800">
             <code>
-              {'claude mcp add --transport http \\\n' +
-                '  --client-id <client_id> \\\n' +
-                '  --callback-port <PORT> \\\n' +
-                '  ollert https://ollert-mcp.2719.fyi/mcp'}
+              claude mcp add --transport http ollert
+              https://ollert-mcp.2719.fyi/mcp
             </code>
           </pre>
         </div>
         <p className="text-gray-500 dark:text-gray-400">
-          New client OAuth registration is admin-only — ask the Ollert admin
-          for a <code>client_id</code> to enter under &ldquo;Advanced
-          settings&rdquo; (claude.ai/Desktop) or <code>--client-id</code>{' '}
-          (Claude Code) before connecting.
+          Either way, a browser opens for you to sign in and approve — no
+          admin setup needed first.
         </p>
       </section>
     </div>
