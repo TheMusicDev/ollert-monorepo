@@ -53,16 +53,25 @@ function ProfilePage() {
             <strong className="text-gray-900 dark:text-gray-100">
               Claude Code:
             </strong>{' '}
-            <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs dark:bg-gray-800">
-              claude mcp add --transport http ollert
-              https://ollert-mcp.2719.fyi/mcp
-            </code>
+            needs its own registered client (it uses a local callback, not
+            the cloud flow claude.ai/Desktop share) — get a{' '}
+            <code>client_id</code> and pick an unused <code>PORT</code> from
+            the admin first, then:
           </p>
+          <pre className="overflow-x-auto rounded bg-gray-100 p-2 text-xs dark:bg-gray-800">
+            <code>
+              {'claude mcp add --transport http \\\n' +
+                '  --client-id <client_id> \\\n' +
+                '  --callback-port <PORT> \\\n' +
+                '  ollert https://ollert-mcp.2719.fyi/mcp'}
+            </code>
+          </pre>
         </div>
         <p className="text-gray-500 dark:text-gray-400">
           New client OAuth registration is admin-only — ask the Ollert admin
           for a <code>client_id</code> to enter under &ldquo;Advanced
-          settings&rdquo; / <code>--client-id</code> before connecting.
+          settings&rdquo; (claude.ai/Desktop) or <code>--client-id</code>{' '}
+          (Claude Code) before connecting.
         </p>
       </section>
     </div>
