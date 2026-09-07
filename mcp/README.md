@@ -66,6 +66,8 @@ The `client_id` itself lives only in the Supabase dashboard, never in this repo.
 
 ## Connecting claude.ai
 
+On a personal Free/Pro/Max account, any user can add the connector themselves via Settings. On a Team/Enterprise account, only an Owner/Primary Owner can add it (Organization settings → Connectors) — members then just connect to the existing one, not add their own.
+
 1. In claude.ai, go to **Settings → Connectors → Add custom connector**.
 2. **Server URL**: `https://ollert-mcp.2719.fyi/mcp`
 3. claude.ai auto-discovers the OAuth setup from `mcp/`'s RFC 9728 metadata (`/.well-known/oauth-protected-resource/mcp`), which points at the Supabase project's own OAuth 2.1 authorization server — no separate config needed for that part.

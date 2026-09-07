@@ -47,7 +47,8 @@ function ProfilePage() {
               claude.ai / Claude Desktop:
             </strong>{' '}
             Settings → Connectors → Add custom connector, paste the server
-            URL above.
+            URL above. (Team/Enterprise: only an Owner/Primary Owner adds it
+            at the org level — members just connect to the existing one.)
           </p>
           <p>
             <strong className="text-gray-900 dark:text-gray-100">
@@ -55,8 +56,9 @@ function ProfilePage() {
             </strong>{' '}
             needs its own registered client (it uses a local callback, not
             the cloud flow claude.ai/Desktop share) — get a{' '}
-            <code>client_id</code> and pick an unused <code>PORT</code> from
-            the admin first, then:
+            <code>client_id</code> registered with redirect URI{' '}
+            <code>http://localhost:&lt;PORT&gt;/callback</code> and that same{' '}
+            <code>PORT</code> from the admin first, then:
           </p>
           <pre className="overflow-x-auto rounded bg-gray-100 p-2 text-xs dark:bg-gray-800">
             <code>
