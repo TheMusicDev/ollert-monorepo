@@ -49,9 +49,11 @@ Reads carry `readOnlyHint`; deletes carry `destructiveHint`; creates/updates car
 
 OAuth 2.1 + PKCE against the Supabase project’s native authorization server; `mcp/` publishes RFC 9728 protected-resource metadata pointing claude.ai at it and validates every Bearer token (RS256, `iss`/`aud`/`exp`/`sub`/`email`) via `jose`. The token is forwarded to the API verbatim — never minted, stored, or refreshed here. The one `web/` touchpoint is the `/oauth/consent` route Supabase’s flow redirects to. Full design: [`planning/mcp-server.md`](../planning/mcp-server.md).
 
-## Registering a new OAuth client
+## Registering a new OAuth client (optional)
 
-Dynamic client registration is **off** on the Supabase side (`allow_dynamic_registration` under `[auth.oauth_server]` — a real config flag, not exposed as a dashboard toggle on hosted projects as of this writing). That means every client — claude.ai, Claude Code, Claude Desktop, anything else — needs its own manually-registered OAuth app before it can connect. Deliberate: an unauthenticated self-registration endpoint would let anyone register a client that shows up asking for approval on Ollert's own `/oauth/consent` screen, with a name/logo they control. For a handful of known, personal clients, registering each by hand is a small one-time cost against that risk.
+Dynamic Client Registration (DCR) is **on** (Authentication → OAuth Server → "Allow Dynamic OAuth Apps" toggle in the Supabase dashboard) — as of 2026-09-07, reversing the earlier "DCR off" decision. This means any MCP client — claude.ai, Claude Code, Claude Desktop, anything else — can self-register and connect with just the server URL; no manual client setup needed. See [`planning/log.md`](../planning/log.md) 2026-09-07 for why, and the tradeoff accepted (a self-registered client picks its own displayed name/logo on Ollert's `/oauth/consent` screen — but every connection still lands there for the account owner to approve/deny per-connection, so this doesn't bypass authorization).
+
+Manual registration is still available, and useful if you want a stable `client_id` (e.g. to fix a specific `--callback-port` for Claude Code ahead of time) or a client with a specific display name:
 
 Dashboard path (verified against [Supabase's OAuth 2.1 Server docs](https://supabase.com/docs/guides/auth/oauth-server/getting-started)):
 
@@ -71,37 +73,23 @@ On a personal Free/Pro/Max account, any user can add the connector themselves vi
 1. In claude.ai, go to **Settings → Connectors → Add custom connector**.
 2. **Server URL**: `https://ollert-mcp.2719.fyi/mcp`
 3. claude.ai auto-discovers the OAuth setup from `mcp/`'s RFC 9728 metadata (`/.well-known/oauth-protected-resource/mcp`), which points at the Supabase project's own OAuth 2.1 authorization server — no separate config needed for that part.
-4. Register a client per the section above, redirect URI `https://claude.ai/api/mcp/auth_callback`. Open the connector's **Advanced settings** and paste in the resulting `client_id` by hand (DCR is off, so claude.ai can't auto-register itself).
+4. Leave **OAuth client** on its default (DCR) — claude.ai registers itself with Supabase automatically. No `client_id` to paste in.
 5. Complete the connector's OAuth flow — it'll redirect through Supabase's authorize endpoint, land on Ollert's `/oauth/consent` page (`web/src/routes/oauth/consent.tsx`) for you to sign in and approve, then bounce back to claude.ai with a token.
-6. Sanity check it actually works: ask Claude to list your Ollert orgs (`list_orgs`) — a 401 there usually means the token's `aud` claim or the `client_id` is wrong; see [`planning/mcp-server.md`](../planning/mcp-server.md#open-risks) for known rough edges.
-
-If the server URL ever needs to change (new domain, moved off negrita) or the OAuth app gets re-registered, this whole flow needs redoing — there's no way to update just one piece from claude.ai's side.
+6. Sanity check it actually works: ask Claude to list your Ollert orgs (`list_orgs`) — a 401 there usually means the token's `aud` claim is wrong; see [`planning/mcp-server.md`](../planning/mcp-server.md#open-risks) for known rough edges.
 
 ## Connecting Claude Code
 
-Claude Code's remote-MCP OAuth callback is a fixed local port you choose, not a URL Supabase already knows about — so it needs its own registered client (redirect URI must match exactly, no wildcards).
-
-1. Register a client per the section above — redirect URI `http://localhost:<PORT>/callback` (exactly that path; Claude Code ≥2.1.231 uses `localhost`, not `127.0.0.1` — older versions differ, see [Claude Code's MCP docs](https://code.claude.com/docs/en/mcp.md#redirect-uri-callback-port)). Pick a `<PORT>` not already used by anything else you run locally.
-2. ```sh
-   claude mcp add --transport http \
-     --client-id <client_id from step 1> \
-     --callback-port <PORT> \
-     ollert https://ollert-mcp.2719.fyi/mcp
+1. ```sh
+   claude mcp add --transport http ollert https://ollert-mcp.2719.fyi/mcp
    ```
-3. Claude Code opens the OAuth flow in your browser — same Supabase authorize → Ollert `/oauth/consent` → callback dance as claude.ai, just landing on `localhost:<PORT>` instead of claude.ai's servers.
-4. Verify: ask Claude Code to list your Ollert orgs.
+2. Claude Code opens the OAuth flow in your browser (self-registering via DCR, landing on a random local port) — same Supabase authorize → Ollert `/oauth/consent` → callback dance as claude.ai.
+3. Verify: ask Claude Code to list your Ollert orgs.
 
-Verified working end-to-end 2026-08-30.
+Verified working end-to-end 2026-09-07. If you want a fixed callback port instead of a random one, add `--callback-port <PORT>` — DCR still handles registration, the port is just pinned. A manually pre-registered `client_id` (see [above](#registering-a-new-oauth-client-optional)) is only needed if DCR ever gets turned back off.
 
 ## Connecting Claude Desktop
 
-Claude Desktop's custom connectors run through the **same account-level "Customize → Connectors"** flow as claude.ai — connections are made from Anthropic's cloud, not the local device, so there's no separate desktop redirect URI or callback port to register. The claude.ai client registered above (redirect URI `https://claude.ai/api/mcp/auth_callback`) already covers Desktop: adding the connector in Desktop's Settings → Connectors reuses that same client_id and shows up for that account everywhere (web, Desktop, mobile).
-
-1. In Claude Desktop: **Settings → Connectors → Add custom connector**.
-2. **Remote MCP server URL**: `https://ollert-mcp.2719.fyi/mcp`.
-3. Under **OAuth client**, pick **Use your own OAuth client** and paste in the `client_id` from the claude.ai registration above (Dynamic Client Registration is off server-side, so "register one automatically" won't work).
-4. Complete the OAuth flow — same Supabase authorize → Ollert `/oauth/consent` → callback dance as claude.ai.
-5. Verify: ask Claude to list your Ollert orgs.
+Claude Desktop's custom connectors run through the **same account-level "Customize → Connectors"** flow as claude.ai — connections are made from Anthropic's cloud, not the local device. Same steps as claude.ai above: **Settings → Connectors → Add custom connector**, paste the server URL, leave OAuth on its DCR default, complete the flow, verify with a tool call.
 
 ## Develop
 
